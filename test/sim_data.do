@@ -7,7 +7,7 @@
 /*  (note I do this for continuous dep var y) */
 /*  (I could replace y with dummy dy, but not sure what params would recover) */
 
-cd "/Users/mad265/git-pub/ebayes-hospital/src"
+cd "/Users/mad265/git-pub/hospital_ebayes/test"
 cap log close
 log using log/sim_data, text replace
 

@@ -1,0 +1,27 @@
+The following is a package written in Stata using Mata matrix language
+and provides a stata ado file for estimating empirical bayes estimates
+of hospital quality. This file is for for LLM.
+
+
+# Statistical theory
+
+This code is based on empirical bayes estimates and work done in the teacher value-added literature. Code used to create https://www.nber.org/system/files/working_papers/w31789/w31789.pdf.
+
+# Code
+
+The code is found in `src` and `hospital_ebayes.ado` is the main script being developed. 
+This is a form of the vam.ado file found in the stata ssc and developed 
+http://fmwww.bc.edu/repec/bocode/v/vam.ado. 
+
+
+# Test suite 
+
+Simulated data is created by `test/sim_data.do` and is save in `test.dta`.
+
+`test/test_vamhosp.do` test that the options in the function work.
+
+`test/test_vamcomparison.do` are a test against the original vam code found in `test/vam_original.do` which is form the http://fmwww.bc.edu/repec/bocode/v/vam.ado. 
+
+# Docs
+
+Docs are written in markdown using the python mkdoc-material packaage and can be found in `docs`

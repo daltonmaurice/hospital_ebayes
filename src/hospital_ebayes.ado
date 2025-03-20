@@ -32,6 +32,8 @@ Optional Arguments:
 - driftlimit:  Maximum number of lags (-1 for all)
 - before:      Calculate leave-out estimates using only prior data
 - quasiexperiment: Calculate quasi-experimental estimates
+- leaveout_years: New parameter for year ranges to leave out
+- leaveout_vars: New parameter for variable mappings
 
 Usage Example:
     vamhclose score, hospitalid(hospital) year(year) ///
@@ -61,14 +63,15 @@ syntax varname(ts fv), hospitalid(varname) year(varname) [class(varname) ///
     controls(varlist ts fv) absorb(varname) tfx_resid(varname) ///
     data(string) output(string) output_addvars(varlist) ///
     driftlimit(integer -1) before(string) ///
-    QUASIexperiment]
+    leaveout_years(string) /// New parameter for year ranges to leave out
+    leaveout_vars(string)]  /// New parameter for variable mappings
 
 * By default we use 1 class or ward per hospital. We didnt feel there was 
 * a direct comparable unit to classrooms within a hospital.
 if "`class'" == "" {
     tempvar class_var 
-    egen `class_var'=group(`hospitalid' `year' `ct')
-    local class `class_var'
+    egen `class_var'=group(`hospitalid' `year')
+    local class `class_var' 
 }
 
 * Error checks
@@ -87,23 +90,26 @@ if (_rc==0) {
 }
 
 
-if ("`quasiexperiment'"!="") {
-    capture confirm variable tv_2yr_l, exact
-    if (_rc==0) {
-        di as error "The dataset loaded in memory when vam is run cannot have a variable named tv_2yr_l."
-        exit 110
+if ("`leaveout_years'"!="") {
+    // Parse the leaveout rules
+    local n_rules = 0
+    foreach rule in `leaveout_years' {
+        local ++n_rules
+        tokenize `rule', parse(",")
+        local rule_`n_rules'_before "`1'"
+        local rule_`n_rules'_after "`3'"
     }
-
-    capture confirm variable tv_2yr_f, exact
-    if (_rc==0) {
-        di as error "The dataset loaded in memory when vam is run cannot have a variable named tv_2yr_f."
-        exit 110
-    }
-
-    capture confirm variable tv_ss, exact
-    if (_rc==0) {
-        di as error "The dataset loaded in memory when vam is run cannot have a variable named tv_ss."
-        exit 110
+    
+    // Parse variable names
+    tokenize `leaveout_vars'
+    forvalues i = 1/`n_rules' {
+        local var_`i' "``i''"
+        capture confirm variable ``i'', exact
+        if (_rc==0) {
+            di as error "The dataset loaded in memory cannot have a variable named ``i''."
+            exit 110
+        }
+        qui gen float ``i'' = .
     }
 }
 
@@ -183,25 +189,32 @@ forvalues l=1/`by_vals' {
     }
 
     *** Predict residuals
-
+    sort `hospitalid' `year' `class'
     * If tfx_resid is empty, predict residuals
     if "`tfx_resid'"=="" {
-        qui predict score_r if e(sample),r
+        predict score_r1 if e(sample),r
     }
     * If tfx_resid was specified, predict residuals + absorbed teacher fixed effects
     else {
         qui predict score_r1 if e(sample), dresiduals
-        ** Adjust for shrinkage target if specified
-        if "`shrinkage_target'" != "" {
-            reg score_r1 `shrinkage_target'
-            qui predict score_r if e(sample), res
-            qui predict y_shrinktarget if e(sample), xb
-        }
-        else {
-            gen score_r = score_r1
-        }
-        qui sum score_r, detail
     }
+    ** Adjust for shrinkage target if specified
+    if "`shrinkage_target'" != "" {
+        reg score_r1 `shrinkage_target'
+        qui predict score_r if e(sample), res
+        qui predict y_shrinktarget if e(sample), xb
+            
+        // Check if y_shrinktarget was created successfully
+        capture confirm variable y_shrinktarget
+        if _rc {
+            di as error "Error: Failed to create y_shrinktarget variable"
+            exit 111
+        }
+    }
+    else {
+        gen score_r = score_r1
+    }
+    qui sum score_r, detail
 
     *** Save residuals to a dataset if merging them later
     if `merge_resid'==1 {
@@ -444,46 +457,18 @@ by `hospitalid': egen `obs_hosp'=count(`hospitalid')
 * Compute teacher VA
 qui gen float tv=.
 
-if "`quasiexperiment'"!="" &  "`before'"=="" {
-    qui gen float tv_2yr_l=.
-    qui gen float tv_2yr_f=.
-    qui gen float tv_ss=.
-    *vectorTostripe takes matrix m which are the covariances and creates the lower
-    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "tv_2yr_l", "tv_2yr_f", "tv_ss")
+if ("`leaveout_years'"!="") {
+    // Convert leaveout rules and vars to mata format
+    local n_rules = wordcount("`leaveout_years'")
+    mata: st_local("mata_rules", invtokens(tokens("`leaveout_years'")))
+    mata: st_local("mata_vars", invtokens(tokens("`leaveout_vars'")))
+    
+    // Call mata function with leaveout parameters
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", tokens("`mata_rules'"), tokens("`mata_vars'"))
 }
-
-if "`before'"!="" & "`quasiexperiment'"!="" {
-    qui gen float tv_b2yr_l=.
-    qui gen float tv_b2yr_f=.
-    qui gen float tv_bss_t_t1_t2=.
-    qui gen float tv_bss_tm1_t_t1_t2_t3=.
-    qui gen float tv_bss_tm2_t2=.
-    qui gen float tv_bss_tm1_t1=.
-    qui gen float tv_bss_event=.
-    qui gen float tv_bss_prepl=.
-    qui gen float tv_bss_weight=.
-    qui gen float tv_bss_t_mt1_mt2=.
-    qui gen float tv_bss_premn=.
-    qui gen float tv_bss_tm3_t1=.
-    foreach v in tv_bss_t_t5 tv_bss_tm1_t4 tv_bss_tm2_t3 tv_bss_tm3_t2 tv_bss_tm4_t1 tv_bss_tm5_t {
-        qui gen float `v'=.
-    }
-
-    local bssweight
-    local rscore
-    forvalue i=1/21 {
-        qui gen float bss_weight`i'=.
-        local bssweight bss_weight`i' `bssweight'
-        qui gen float bss_score`i'=.
-        local rscore bss_score`i' `rscore'
-    }
-
-    // READS IN MATRIX THAT HAS COVARIANCES FOR DIFFERENT TIME PERIODS -vectortostripdiag(m)
-    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "tv_b2yr_l", "tv_b2yr_f","`rscore'","`bssweight'", "tv_bss_t_t1_t2" , "tv_bss_tm1_t_t1_t2_t3" , "tv_bss_event","tv_bss_prepl","tv_bss_premn","tv_bss_t_mt1_mt2","tv_bss_tm2_t2","tv_bss_tm1_t1","tv_bss_tm3_t1","tv_bss_t_t5","tv_bss_tm1_t4","tv_bss_tm2_t3","tv_bss_tm3_t2","tv_bss_tm4_t1","tv_bss_tm5_t")
-}
-
-if "`before'"=="" & "`quasiexperiment'"=="" {
-        mata:driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv")
+else {
+    // Call mata function without leaveout parameters
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv")
 }
 
 if "`shrinkage_target'" != "" {
@@ -496,29 +481,22 @@ else{
 ////des * ,fullname
 
 * Save the VA estimates to a dataset
-if ("`quasiexperiment'"=="") & "`before'"=="" {
+if ("`leaveout_years'"=="") & "`before'"=="" {
     keep `hospitalid' `year' `by' tv `hvar'
 }
-else if "`before'"!="" {
-    gen rscore_min_classmean= `class_mean'
-    keep `hospitalid' `year' `by' tv tv_b2yr_l tv_b2yr_f tv_bss_t_t1_t2 tv_bss_tm1_t_t1_t2_t3 tv_bss_t_mt1_mt2 tv_bss_prepl tv_bss_premn tv_bss_event `bssweight' `rscore' rscore_min_classmean  `hvar' tv_bss_tm2_t2 tv_bss_tm1_t1 tv_bss_tm3_t1 tv_bss_t_t5 tv_bss_tm1_t4 tv_bss_tm2_t3 tv_bss_tm3_t2 tv_bss_tm4_t1 tv_bss_tm5_t
-}
 else {
-    keep `hospitalid' `year' `by' tv tv_2yr_l tv_2yr_f tv_ss
+    keep `hospitalid' `year' `by' tv `leaveout_vars'
 }
 
 
 ///need to add back the hospital charactericis portion
 if "`shrinkage_target'" != "" {
-    foreach i in t_mt1_mt2  t_t1_t2 event premn prepl tm1_t_t1_t2_t3 tm1_t1 tm2_t2 tm3_t1 t_t5 tm1_t4 tm2_t3 tm3_t2 tm4_t1 tm5_t {
-        gen tv_hchar_bss_`i' =  tv_bss_`i' + `mshrinktarget'        
-        replace tv_hchar_bss_`i'=`mshrinktarget' if tv_bss_`i'==.
+    foreach v in `leaveout_vars' {
+        gen `v'_shrinktgt =  `v' + `mshrinktarget'        
+        replace `v'_shrinktgt=`mshrinktarget' if `v'==.
     }
 
-    gen tv_hchar_b2yr_l	=   tv_b2yr_l    + `mshrinktarget'
-
-    gen tv_hchar_b2yr_f	=   tv_b2yr_f    + `mshrinktarget'
-    gen hchar=`mshrinktarget'
+    gen shrinktarget_base=`mshrinktarget'
 }
 
 if (`firstloop'!=1) {
@@ -589,7 +567,16 @@ set matastrict on
 
 mata:
     real rowvector computeweights(real matrix M, real scalar i, real colvector c, | real colvector weights) {
-
+        // Add safety checks
+        if (rows(M) != cols(M)) {
+            printf("Error: Non-square matrix M (%f x %f)\n", rows(M), cols(M))
+            _error(3205, "Matrix must be square")
+        }
+        
+        if (missing(M)) {
+            printf("Warning: Matrix M contains missing values\n")
+        }
+        
         real matrix X
         real matrix L
         real matrix vcv
@@ -663,7 +650,10 @@ real matrix compute_cov_corr(string scalar scores_var, string scalar weight_var,
 }
 
 real rowvector create_m(real colvector lag_covariances, real scalar cov_sameyear, | real scalar lagdim, real scalar driftlimit) {
-
+    // Add debugging
+    printf("lag_covariances dimensions: %f x %f\n", rows(lag_covariances), cols(lag_covariances))
+    printf("cov_sameyear: %f\n", cov_sameyear)
+    
     real rowvector m
 
     if (args()==2)	m=cov_sameyear,lag_covariances'
@@ -680,6 +670,9 @@ void check_m_nomissing(real rowvector m) {
 }
 
 real matrix vectorToStripeDiag(real vector m) {
+    // Add debugging
+    printf("Input vector m dimensions: %f x %f\n", rows(m), cols(m))
+    
     real scalar dim
     dim = length(m)
 
@@ -750,370 +743,89 @@ real scalar driftcalc(real matrix M, real scalar i, real colvector c, real colve
 }
 
 
-real rowvector computeweightstest(real matrix M, real scalar i, real colvector c, | real colvector weights) {
-    /* ####################################################################### */
-    /* ## This program is used for printing out matrices and debugging code    */
-    /* ####################################################################### */
-
-    real matrix X
-        real matrix L
-        real matrix vcv
-        real matrix Mpos
-
-	// construct matrix A which is used to select the relevant elements of M in constructing the VCV matrix
-	real matrix temp
-	real matrix A
-	temp=designmatrix(c)
-
-
-        /// CODE IT USING THIS
-        /* Base of code adapted from Doug Staiger, added 8/30/2019 */
-        /* NOW fix vcv so that it is pos semi def (with block/n will always */
-        /* be invertable see higham, NJ, 1988 "computing a nearest symetric */
-        /* pos sem def matrix I do this by maintianing the estimates of sd */
-        /* of each signal, and fixing the corr matrix so take pos semi def */
-        /* part of vcv, use it to estimate corr(vcv), then */
-        /* vcvpos = corr(vcv):*(sd*sd') */
-        stata(`"di "matrix M""')
-        M
-
-        X=.
-        L=.
-        symeigensystem(M,X,L)
-        Mpos = X*diag(L:*(L:>=0))*X'
-        stata(`"di "matrix Mpos""')
-        Mpos
-
-        A = temp, J(rows(c),cols(Mpos)-cols(temp),0)
-	// use A to select elements of M and build the VCV.  The second term adjusts the diagonal elements of the VCV matrix to account for the class-level and individual-level shocks
-        // We want to make the underlying signal matrix
-        if (args()==4) vcv=A*Mpos*A' + diag(1:/weights)
-        else vcv=A*Mpos*A'
-
-        stata(`"di "matrix vcv""')
-        vcv
-
-        // phi is the vector of autocovariances, selected correctly using the matrix A.
-        real rowvector phi
-        phi=Mpos[i,.]*A'
-
-        stata(`"di "matrix phi""')
-        phi
-
-        /* return the vector of weights, choose the VCV that D.Staiger */
-        /* coded  to always be pos semi def */
-        return    (phi*cholinv(vcv))
-}
-
-
-
-real scalar driftcalctest(real matrix M, real scalar i, real colvector c, real colvector weights, real colvector scores) {
-    /* ####################################################################### */
-    /* ## This program is used for printing out matrices and debugging code    */
-    /* ####################################################################### */
-
-    // b is the vector of weights
-    real rowvector b
-    computeweightstest(M, i, c, weights)
-    stata(`"di "start compute weights" "')
-    b=computeweights(M, i, c, weights)
-    /* CODE FOR TESTING */
-    stata(`"di "b weight" "')
-    b
-    stata(`"di "i index " "')
-    i
-    stata(`"di "scores" "')
-    scores
-    stata(`"di "scores*b" "')
-    /* return the computed tv estimate -- where it basically is summing up all the */
-    /* scores * weight - by matrix mulitplication of row and column vector */
-    return (b*scores)
-}
-
-
-
-void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar time_var, string scalar scores_var, string scalar weights_var, string scalar hospobs_var, string scalar va_var, | string scalar va_2yr_l_var, string scalar va_2yr_f_var, string scalar va_ss_score_var, string scalar va_ss_wght_var, string scalar va_ss_var, string scalar va_ss_2var, string scalar  va_ss_event_var, string scalar  va_ss_pre_var, va_ss_premn_var, string scalar va_ss_minus_var, string scalar tv_bss_tm2_t2, string scalar tv_bss_tm1_t1 , string scalar tv_bss_tm3_t1, string scalar tv_bss_t_t5,string scalar tv_bss_tm1_t4,string scalar tv_bss_tm2_t3,string scalar tv_bss_tm3_t2,string scalar tv_bss_tm4_t1,string scalar tv_bss_tm5_t ) {
-
-    real scalar quasi
-    if (args()==7) quasi=0
-    else if (args()==26) quasi=1
-    else _error("The mata command driftcalclist must either be called with no quasi-experiment variables or the full set of 3 quasi-experiment variables.)")
-
-    real scalar nobs
-    nobs=st_nobs()
-
-    // get variable indices for the variables referenced in the loop (referring by index speeds up the loop)
-    real scalar hospitalid_var_ind
-    real scalar time_var_ind
-    real scalar hospobs_var_ind
-    real scalar va_var_ind
-    hospitalid_var_ind=st_varindex(hospitalid_var)
-    time_var_ind=st_varindex(time_var)
-    hospobs_var_ind=st_varindex(hospobs_var)
-    va_var_ind=st_varindex(va_var)
-
-
-    if (quasi==1) {
-        real scalar va_2yr_l_var_ind
-        real scalar va_2yr_f_var_ind
-        real scalar va_ss_2var_ind
-        real scalar va_ss_var_ind
-        real scalar va_ss_minus_var_ind
-        real scalar va_ss_wght_var_ind
-        real scalar va_ss_score_var_ind
-        real scalar va_ss_event_var_ind
-        real scalar va_ss_pre_var_ind
-        real scalar va_ss_premn_var_ind
-        real scalar va_ss_tm2_t2
-        real scalar va_ss_tm1_t1
-        real scalar va_ss_tm3_t1
-        real scalar va_ss_t_t5
-        real scalar va_ss_tm1_t4
-        real scalar va_ss_tm2_t3
-        real scalar va_ss_tm3_t2
-        real scalar va_ss_tm4_t1
-        real scalar va_ss_tm5_t
-
-        va_ss_2var_ind=st_varindex(va_ss_2var)
-        va_ss_var_ind=st_varindex(va_ss_var)
-        va_ss_minus_var_ind=st_varindex(va_ss_minus_var)
-
-        va_2yr_l_var_ind=st_varindex(va_2yr_l_var)
-        va_2yr_f_var_ind=st_varindex(va_2yr_f_var)
-
-        ///main analysis
-        va_ss_tm3_t1=st_varindex(tv_bss_tm3_t1)
-        va_ss_tm2_t2=st_varindex(tv_bss_tm2_t2)
-        va_ss_tm1_t1=st_varindex(tv_bss_tm1_t1)
-
-        ///event
-        va_ss_event_var_ind=st_varindex(va_ss_event_var)
-        va_ss_pre_var_ind=st_varindex(va_ss_pre_var)
-        va_ss_premn_var_ind=st_varindex(va_ss_premn_var)
-
-        va_ss_t_t5    = st_varindex(tv_bss_t_t5)
-        va_ss_tm1_t4  = st_varindex(tv_bss_tm1_t4)
-        va_ss_tm2_t3  = st_varindex(tv_bss_tm2_t3)
-        va_ss_tm3_t2  = st_varindex(tv_bss_tm3_t2)
-        va_ss_tm4_t1  = st_varindex(tv_bss_tm4_t1)
-        va_ss_tm5_t   = st_varindex(tv_bss_tm5_t)
-
-        ///for debugging
-        va_ss_wght_var_ind=st_varindex(tokens(va_ss_wght_var))
-        va_ss_score_var_ind=st_varindex(tokens(va_ss_score_var))
-    }
-
-    // create views of the variables we need
-    real matrix Z
-    st_view(Z=.,.,(hospitalid_var,time_var,weights_var,scores_var))
-
-    // Declarations
-    real scalar obs
-    real scalar hospitalid
-    real scalar obs_hosp
-    real scalar time
-    real scalar new_hospitalid
-    real scalar new_time
-    real scalar year_index
-    ///real scalar year
-    real matrix Z_hosp
-    real matrix Z_obs
-    real matrix Z_quasi
-
-    // set missing b/c referenced in first loop's if statement
-    hospitalid=.
-    time=.
-
-    // Loop over all observations
+void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar time_var, 
+    string scalar scores_var, string scalar weights_var, string scalar hospobs_var, 
+    string scalar va_var, | string vector leaveout_years, string vector leaveout_vars) {
+    
+    // Declare all variables upfront
+    real scalar nobs, obs, hospitalid, obs_hosp, time, new_hospitalid, new_time, year_index, i
+    real matrix Z, Z_hosp, Z_obs, Z_quasi
+    
+    nobs = st_nobs()
+    
+    // Get variable indices
+    real scalar hospitalid_var_ind, time_var_ind, hospobs_var_ind, va_var_ind
+    hospitalid_var_ind = st_varindex(hospitalid_var)
+    time_var_ind = st_varindex(time_var)
+    hospobs_var_ind = st_varindex(hospobs_var)
+    va_var_ind = st_varindex(va_var)
+    
+    // Create view of variables
+    st_view(Z=., ., (hospitalid_var, time_var, weights_var, scores_var))
+    
+    // Initialize
+    hospitalid = .
+    time = .
+    
+    // Loop over observations
     for (obs=1; obs<=nobs; obs++) {
-
-        new_hospitalid=_st_data(obs,hospitalid_var_ind)
-        new_time=_st_data(obs,time_var_ind)
-        // Only perform calculations if we've reached a new hospital-year
+        new_hospitalid = _st_data(obs, hospitalid_var_ind)
+        new_time = _st_data(obs, time_var_ind)
+        
+        // Only perform calculations for new hospital-year
         if (new_time != time | new_hospitalid != hospitalid) {
-
-            // save new time id
-            time=new_time
-
-            // If we've reached a new hospital
+            time = new_time
+            
             if (new_hospitalid != hospitalid) {
-
-                // save new hospital id
-                hospitalid=new_hospitalid
-
-                // save number of observations for that hospital
-                obs_hosp=_st_data(obs,hospobs_var_ind)
-
-                // select subview of Z, Z_hosp, which only contains the correct hospital's data
-                st_subview(Z_hosp=., Z, (obs,obs+obs_hosp-1), .)
-
-                // define hospital-specific scalar which indexes first year of teaching at 1
-                year_index=min(Z_hosp[.,2])-1
-
+                hospitalid = new_hospitalid
+                obs_hosp = _st_data(obs, hospobs_var_ind)
+                st_subview(Z_hosp=., Z, (obs, obs+obs_hosp-1), .)
+                year_index = min(Z_hosp[.,2])-1
             }
-
-            // remove the rows of Z_hosp corresponding to current year
-            Z_obs=select(Z_hosp, Z_hosp[.,2]:!=time)
-
-            // remove rows of Z_obs that do not have score data
-            Z_obs=select(Z_obs, Z_obs[.,4]:!=.)
-
-            /// CODE FOR TESTING -- PROVIDER NUMBER 10
-            /* if ( hospitalid ==7404 & (time==1996 |  time==1997)  ) { */
-            /*     ///test case of a missing providernumber -- if missing in a year we need to i believe create a missing value */
-            /*     stata(`"di "7404 " "') */
-            /*     stata(`"di "id - year - weights- scores" "') */
-            /*     Z_obs */
-            /*     time */
-            /* } */
-
-
-            // if there are actually observations in other years, compute VA
+            
+            // Get observations excluding current year
+            Z_obs = select(Z_hosp, Z_hosp[.,2]:!=time)
+            Z_obs = select(Z_obs, Z_obs[.,4]:!=.)
+            
+            // Compute standard VA
             if (rows(Z_obs) > 0) {
-                st_store(obs,va_var_ind,driftcalc(M,time-year_index,Z_obs[.,2]:-year_index,Z_obs[.,3],Z_obs[.,4]))
+                st_store(obs, va_var_ind, 
+                    driftcalc(M, time-year_index, Z_obs[.,2]:-year_index, Z_obs[.,3], Z_obs[.,4]))
             }
-            if (quasi==1) {
-                // remove the rows of Z_obs corresponding to the previous year- we dont use
-                Z_quasi=select(Z_obs, Z_obs[.,2]:!=time-1)
-                ///rows(Z_obs)
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    ///print out min year
-                    st_store(obs,va_2yr_l_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                ///rows(Z_quasi)
-
-                // remove the rows of Z_obs corresponding to the next year- we dont use
-                Z_quasi=select(Z_obs, Z_obs[.,2]:!=time+1)
-                //rows(Z_obs)
-                //rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_2yr_f_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                ///rows(Z_quasi)
-
-                // remove the rows of Z_obs corresponding to {t,t+1,t+2}
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+2)+(Z_obs[.,2]:<time))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-
-                    /// CODE FOR TESTING
-                    /* if ( (hospitalid ==7401 | hospitalid ==7404) & (time==1996 |  time==1997)  ) { */
-                    /*     /\*     ///test case of a missing providernumber -- if missing in a year we need to i believe create a missing value *\/ */
-                    /*     stata(`"di "7404 & time==1996 |  time==1997" "') */
-                    /*     stata(`"di "id - year" "') */
-                    /*     time */
-                    /*     hospitalid */
-                    /*     Z_quasi */
-                    /*     driftcalctest(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]) */
-                    /* } */
-
-                    ///save allweights
-                    real rowvector b
-                    real scalar j
-                    b=computeweights(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3])
-
-                    for (j=1; j<=cols(b); j++) {
-                        st_store(obs,va_ss_wght_var_ind[1,j],b[1,j])
-                        st_store(obs,va_ss_score_var_ind[1,j],Z_quasi[j,4])
+            
+            // Compute leaveout estimates if specified
+            if (args()>7) {
+                for (i=1; i<=length(leaveout_years); i++) {
+                    string scalar before, after
+                    _parse_rule(leaveout_years[i], before, after)
+                    
+                    // Build selection condition
+                    string scalar condition
+                    condition = ""
+                    if (before != "") condition = condition + "(Z_obs[.,2]:<time" + before + ")"
+                    if (after != "") {
+                        if (condition != "") condition = condition + "+"
+                        condition = condition + "(Z_obs[.,2]:>time" + after + ")"
+                    }
+                    
+                    // Apply selection and compute VA
+                    Z_quasi = select(Z_obs, strtoreal(condition))
+                    if (rows(Z_quasi) > 0) {
+                        st_store(obs, st_varindex(leaveout_vars[i]), 
+                            driftcalc(M, time-year_index, Z_quasi[.,2]:-year_index, Z_quasi[.,3], Z_quasi[.,4]))
                     }
                 }
-                // remove the rows of Z_obs corresponding to {t-1,..t+3)
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+3)+(Z_obs[.,2]:<time-1))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_2var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+1)+(Z_obs[.,2]:<time-1))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm1_t1,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                ///leaveout t-2,t+2
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+2)+(Z_obs[.,2]:<time-2))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm2_t2,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                ///leaveout t-3,t+1
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+1)+(Z_obs[.,2]:<time-3))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm3_t1,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                // remove the rows of Z_obs corresponding to {inf,..t-1,)
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:<time))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_pre_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:<time-2 ))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_premn_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                // remove the rows of Z_obs corresponding to {inf,..t-1,)
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time)+(Z_obs[.,2]:<time-2))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_minus_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                ///set up for event study {t-3,...,t,..,t+2}
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+2)+(Z_obs[.,2]:<time-3))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_event_var_ind,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
-                ///set up for new portion of event study where we show market weighted empirical bayes
-                /// [t,t+5]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+5)+(Z_obs[.,2]:<time))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_t_t5,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                /// [t-1,t+4]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+4)+(Z_obs[.,2]:<time-1))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm1_t4,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                /// [t-2,t+3]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+3)+(Z_obs[.,2]:<time-2))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm2_t3,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                /// [t-3,t+2]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+2)+(Z_obs[.,2]:<time-3))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm3_t2,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                /// [t-4,t+1]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time+1)+(Z_obs[.,2]:<time-4))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm4_t1,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-                /// [t-5,t]
-                Z_quasi=select(Z_obs, (Z_obs[.,2]:>time)+(Z_obs[.,2]:<time-5))
-                ///rows(Z_quasi)
-                if (rows(Z_quasi) > 0) {
-                    st_store(obs,va_ss_tm5_t,driftcalc(M,time-year_index,Z_quasi[.,2]:-year_index,Z_quasi[.,3],Z_quasi[.,4]))
-                }
-
             }
         }
     }
+}
+
+// Helper function to parse leaveout rules
+void _parse_rule(string scalar rule, string scalar before, string scalar after) {
+    string vector parts
+    parts = tokens(rule, ",")
+    before = parts[1]
+    after = parts[2]
 }
 end
 

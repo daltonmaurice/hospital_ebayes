@@ -52,8 +52,8 @@ Based on vam.ado written by Michael Stepner version 2.0.1  27jul2013.
 *******************************************************************************/
 
 
-cap program drop  vamhosp
-program define vamhosp
+cap program drop  hospital_ebayes
+program define hospital_ebayes
 version 10.2
 
 set more off
@@ -62,7 +62,7 @@ syntax varname(ts fv), hospitalid(varname) year(varname) [class(varname) ///
     shrinkage_target(varlist) ///
     controls(varlist ts fv) absorb(varname) tfx_resid(varname) ///
     data(string) output(string) output_addvars(varlist) ///
-    driftlimit(integer -1) before(string) ///
+    driftlimit(integer -1) ///
     leaveout_years(string) /// New parameter for year ranges to leave out
     leaveout_vars(string)]  /// New parameter for variable mappings
 
@@ -379,7 +379,7 @@ if (`driftlimit'>0)	mata:m=create_m(CC[.,1],st_numscalar("`cov_sameyear'"),`maxs
 else				mata:m=create_m(CC[.,1],st_numscalar("`cov_sameyear'"))
 
 /* Code addition by D.Staiger 2019-02-07 - to match changes made to other code.  */
-di "Standard deviations: total, classes, students, teachers same year"
+di "Standard deviations: total, classes, students, Hospital same year"
 if (`missing_sameyear'==0) di sqrt(`var_total'),sqrt(`var_class'),sqrt(`var_ind'),sqrt(`cov_sameyear')
 else di sqrt(`var_total'),sqrt(`var_class'),sqrt(`var_ind'),sqrt(`cov_sameyear')
 
@@ -471,31 +471,23 @@ else {
     mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv")
 }
 
-if "`shrinkage_target'" != "" {
-    local hvar `charvolume'
-}
-else{
-    local hvar
-}
-
-////des * ,fullname
-
 * Save the VA estimates to a dataset
-if ("`leaveout_years'"=="") & "`before'"=="" {
-    keep `hospitalid' `year' `by' tv `hvar'
+if ("`leaveout_years'"=="") {
+    keep `hospitalid' `year' `by' tv `shrinkage_target' `mshrinktarget'
 }
 else {
-    keep `hospitalid' `year' `by' tv `leaveout_vars'
+    keep `hospitalid' `year' `by' tv `shrinkage_target' `mshrinktarget' `leaveout_vars'
 }
 
 
 ///need to add back the hospital charactericis portion
 if "`shrinkage_target'" != "" {
-    foreach v in `leaveout_vars' {
-        gen `v'_shrinktgt =  `v' + `mshrinktarget'        
-        replace `v'_shrinktgt=`mshrinktarget' if `v'==.
+    if "`leaveout_vars'" != "" {
+        foreach v in `leaveout_vars' {
+            gen `v'_shrinktgt =  `v' + `mshrinktarget'        
+            replace `v'_shrinktgt=`mshrinktarget' if `v'==.
+        }
     }
-
     gen shrinktarget_base=`mshrinktarget'
 }
 

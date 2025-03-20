@@ -1,0 +1,1875 @@
+--------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/mad265/git-pub/hospital_ebayes/test/log/sim_data.log
+  log type:  text
+ opened on:  19 Mar 2025, 22:27:09
+
+. 
+. clear all
+  -------------------------------------------------------------------------------------- begin clear ---
+  - if _caller() < 10 {
+    _clear_9 `0'
+    exit
+    }
+  - version 10
+  - syntax [anything]
+  - tokenize `anything'
+  = tokenize all
+  - if `"`2'"' != "" {
+  = if `""' != "" {
+    display as err "`2' not allowed"
+    exit 198
+    }
+  - if "`1'"=="" {
+  = if "all"=="" {
+    drop _all
+    label drop _all
+    }
+  - else if "`1'"=="collect" {
+  = else if "all"=="collect" {
+    collect clear
+    }
+  - else if "`1'"=="frames" {
+  = else if "all"=="frames" {
+    frames reset
+    }
+  - else if "`1'"=="mata" {
+  = else if "all"=="mata" {
+    mata: mata clear
+    }
+  - else if "`1'"=="python" {
+  = else if "all"=="python" {
+    python clear
+    }
+  - else if "`1'"=="java" {
+  = else if "all"=="java" {
+    java clear
+    }
+  - else if inlist("`1'", "results", "matrix") {
+  = else if inlist("all", "results", "matrix") {
+    return clear
+    clearreturn
+    ereturn clear
+    sreturn clear
+    _return drop _all
+    if ("`1'" == "matrix") {
+    matrix drop _all
+    _est drop _all
+    }
+    }
+  - else if "`1'"=="programs" {
+  = else if "all"=="programs" {
+    program drop _all
+    }
+  - else if "`1'"=="ado" {
+  = else if "all"=="ado" {
+    program drop _allado
+    }
+  - else if "`1'"=="rngstream" | "`1'"=="rngstreams" {
+  = else if "all"=="rngstream" | "all"=="rngstreams" {
+    set rngstream clear
+    }
+  - else if "`1'"=="*" | "`1'"=="all" {
+  = else if "all"=="*" | "all"=="all" {
+  - capture mata: st_local("semmods", strofreal(sg__global.hasmodels()))
+  - capture
+  - if (0`semmods') {
+  = if (0) {
+    display as err "-clear all- not allowed while an SEM Builder is open"
+    exit 1
+    }
+  - drop _all
+  - frames reset
+  - label drop _all
+  - matrix drop _all
+  - scalar drop _all
+  - constraint drop _all
+  - eq drop _all
+  - file close _all
+  - postutil clear
+  - _return drop _all
+  - discard
+  - collect clear
+  - program drop _all
+  - timer clear
+  - mata: _st__put_cmd_clear()
+  - mata: mata clear
+  - python clear
+  - java clear
+  - }
+  - else {
+    display as err "`1' not allowed"
+    exit 198
+    }
+  ---------------------------------------------------------------------------------------- end clear ---
+
+. set seed 7
+
+. 
+. /* set globals here */
+. global delta=.95 /* ar(1) correlation */
+
+. global nhosp=4000 /* number of hospitals */
+
+. global nyear=20 /* number of years per hospital */
+
+. global npat=50 /* number of patients per hospital */
+
+. /* var mu is normalized to 1 */
+. global sd_z = .1 /* SD of the hospital-level shrinkage target */
+
+. global sd_xb = 1 /* SD of the patient-level risk adjuster index xb */
+
+. global sd_resid = 5 /* SD of patient-level residual */
+
+. 
+. /* finished with globals */
+. 
+. set obs $nhosp
+Number of observations (_N) was 0, now 4,000.
+
+. gen mu1=rnormal()
+
+. forval i=2/$nyear {
+  2. local j = `i'-1
+  3. gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+  4. }
+- forval i=2/$nyear {
+= forval i=2/20 {
+- local j = `i'-1
+= local j = 2-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu2 = .95*mu1 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 3-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu3 = .95*mu2 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 4-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu4 = .95*mu3 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 5-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu5 = .95*mu4 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 6-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu6 = .95*mu5 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 7-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu7 = .95*mu6 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 8-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu8 = .95*mu7 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 9-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu9 = .95*mu8 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 10-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu10 = .95*mu9 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 11-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu11 = .95*mu10 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 12-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu12 = .95*mu11 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 13-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu13 = .95*mu12 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 14-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu14 = .95*mu13 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 15-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu15 = .95*mu14 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 16-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu16 = .95*mu15 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 17-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu17 = .95*mu16 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 18-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu18 = .95*mu17 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 19-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu19 = .95*mu18 + sqrt(1-.95^2)*rnormal()
+- }
+- local j = `i'-1
+= local j = 20-1
+- gen mu`i' = $delta*mu`j' + sqrt(1-$delta^2)*rnormal()
+= gen mu20 = .95*mu19 + sqrt(1-.95^2)*rnormal()
+- }
+
+. summ mu*
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         mu1 |      4,000    .0230545    .9997658  -3.655078   3.647815
+         mu2 |      4,000    .0216719    1.002646  -4.058532   3.887067
+         mu3 |      4,000    .0149074    1.004329  -3.630895   3.757223
+         mu4 |      4,000    .0120854    1.008165  -3.414551   3.586031
+         mu5 |      4,000    .0130374    1.005977  -3.438332   3.607479
+-------------+---------------------------------------------------------
+         mu6 |      4,000    .0198409    1.000073  -3.439826   3.303974
+         mu7 |      4,000    .0300184    .9953059  -3.442575    3.42413
+         mu8 |      4,000    .0335809    .9943506   -3.21987   3.457493
+         mu9 |      4,000    .0395753    .9954297  -3.564906    3.61025
+        mu10 |      4,000    .0378193    .9999867  -3.778532   3.327644
+-------------+---------------------------------------------------------
+        mu11 |      4,000    .0303502    .9952611  -3.815558   3.476493
+        mu12 |      4,000    .0313554    .9944084  -4.593136   3.350151
+        mu13 |      4,000    .0252835    .9951577  -4.350437   3.589228
+        mu14 |      4,000    .0249121    .9890736  -4.456957   3.498394
+        mu15 |      4,000    .0325935    .9926363  -3.861773   3.498214
+-------------+---------------------------------------------------------
+        mu16 |      4,000    .0241402    .9969365  -3.889477   3.511575
+        mu17 |      4,000    .0293232    1.000194  -4.084283   3.495795
+        mu18 |      4,000     .034276    1.005203  -4.665688   3.680098
+        mu19 |      4,000     .037908    1.003061  -4.270193   3.636343
+        mu20 |      4,000    .0358057    1.001129  -3.680914   3.587745
+
+. corr mu*
+(obs=4,000)
+
+             |      mu1      mu2      mu3      mu4      mu5      mu6      mu7      mu8      mu9     mu10
+-------------+------------------------------------------------------------------------------------------
+         mu1 |   1.0000
+         mu2 |   0.9492   1.0000
+         mu3 |   0.9026   0.9509   1.0000
+         mu4 |   0.8568   0.9034   0.9508   1.0000
+         mu5 |   0.8156   0.8588   0.9056   0.9509   1.0000
+         mu6 |   0.7801   0.8221   0.8658   0.9055   0.9500   1.0000
+         mu7 |   0.7339   0.7755   0.8174   0.8561   0.8996   0.9516   1.0000
+         mu8 |   0.6948   0.7326   0.7723   0.8101   0.8528   0.9028   0.9471   1.0000
+         mu9 |   0.6611   0.6949   0.7347   0.7720   0.8148   0.8611   0.9024   0.9508   1.0000
+        mu10 |   0.6322   0.6629   0.6997   0.7357   0.7764   0.8195   0.8567   0.9028   0.9487   1.0000
+        mu11 |   0.5996   0.6300   0.6658   0.6998   0.7398   0.7799   0.8139   0.8566   0.8984   0.9493
+        mu12 |   0.5758   0.6044   0.6385   0.6674   0.7074   0.7447   0.7763   0.8160   0.8547   0.9036
+        mu13 |   0.5421   0.5692   0.6011   0.6302   0.6703   0.7068   0.7361   0.7736   0.8110   0.8578
+        mu14 |   0.5137   0.5368   0.5673   0.5976   0.6359   0.6685   0.6986   0.7351   0.7706   0.8163
+        mu15 |   0.4901   0.5094   0.5387   0.5694   0.6058   0.6379   0.6686   0.7069   0.7391   0.7799
+        mu16 |   0.4709   0.4880   0.5165   0.5449   0.5765   0.6069   0.6351   0.6722   0.7037   0.7434
+        mu17 |   0.4427   0.4593   0.4863   0.5134   0.5425   0.5735   0.6019   0.6389   0.6692   0.7089
+        mu18 |   0.4154   0.4333   0.4602   0.4844   0.5132   0.5459   0.5713   0.6071   0.6365   0.6725
+        mu19 |   0.3969   0.4140   0.4388   0.4636   0.4928   0.5242   0.5478   0.5825   0.6083   0.6396
+        mu20 |   0.3746   0.3907   0.4152   0.4396   0.4639   0.4944   0.5178   0.5480   0.5741   0.6056
+
+             |     mu11     mu12     mu13     mu14     mu15     mu16     mu17     mu18     mu19     mu20
+-------------+------------------------------------------------------------------------------------------
+        mu11 |   1.0000
+        mu12 |   0.9502   1.0000
+        mu13 |   0.9019   0.9483   1.0000
+        mu14 |   0.8564   0.8989   0.9498   1.0000
+        mu15 |   0.8147   0.8540   0.9028   0.9495   1.0000
+        mu16 |   0.7752   0.8152   0.8598   0.9025   0.9520   1.0000
+        mu17 |   0.7376   0.7722   0.8164   0.8560   0.9038   0.9499   1.0000
+        mu18 |   0.7008   0.7344   0.7767   0.8137   0.8590   0.9035   0.9497   1.0000
+        mu19 |   0.6655   0.6969   0.7381   0.7719   0.8149   0.8568   0.9014   0.9499   1.0000
+        mu20 |   0.6313   0.6625   0.7008   0.7310   0.7728   0.8129   0.8551   0.9016   0.9509   1.0000
+
+
+. 
+. gen id=_n
+
+. reshape long mu, i(id) j(year)
+  ------------------------------------------------------------------------------------ begin reshape ---
+  - u_mi_not_mi_set reshape other
+  - if _caller() <= 10 {
+    reshape_10 `0'
+    exit
+    }
+  - if _caller() >= 12 {
+  - global ReS_Call : di "version " string(_caller()) ":"
+  - }
+  - version 5.0, missing
+  - if "`1'"=="clear" {
+  = if "long"=="clear" {
+    char _dta[ReS_ver]
+    char _dta[ReS_i]
+    char _dta[ReS_j]
+    char _dta[ReS_jv]
+    char _dta[ReS_Xij]
+    char _dta[Res_Xi]
+    char _dta[ReS_atwl]
+    char _dta[ReS_str]
+    local xijn : char _dta[ReS_Xij_n]
+    if "`xijn'" != "" {
+    forvalues i = 1/`xijn' {
+    char _dta[ReS_Xij_wide`i']
+    char _dta[ReS_Xij_long`i']
+    }
+    char _dta[ReS_Xij_n]
+    }
+    exit
+    }
+  - if "`1'"=="no_xij_found" {
+  = if "long"=="no_xij_found" {
+    no_xij_found
+    exit
+    }
+  - if "`1'"=="checkuniq" {
+  = if "long"=="checkuniq" {
+    Veruniq
+    exit
+    }
+  - if "`1'"=="checkluniq" {
+  = if "long"=="checkluniq" {
+    Verluniq
+    exit
+    }
+  - if "`1'"=="nospaces" {
+  = if "long"=="nospaces" {
+    NoSpaces `2'
+    exit
+    }
+  - if "`1'"=="wide" | "`1'"=="long" {
+  = if "long"=="wide" | "long"=="long" {
+  - DoNew `*'
+  = DoNew long mu, i(id) j(year)
+(j = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations            4,000   ->   80,000      
+Number of variables                  21   ->   3           
+j variable (20 values)                    ->   year
+xij variables:
+                       mu1 mu2 ... mu20   ->   mu
+-----------------------------------------------------------------------------
+  - exit
+  -------------------------------------------------------------------------------------- end reshape ---
+
+. summ
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+          id |     80,000      2000.5    1154.708          1       4000
+        year |     80,000        10.5    5.766317          1         20
+          mu |     80,000     .027577    .9988807  -4.665688   3.887067
+
+. gen z=$sd_z*rnormal()
+
+. gen muz=mu+z
+
+. expand $npat
+(3,920,000 observations created)
+
+. gen xb=$sd_xb*rnormal()
+
+. gen y=muz+xb+$sd_resid*rnormal()
+
+. gen dy=(y>$sd_resid)
+
+. summ
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+          id |  4,000,000      2000.5    1154.701          1       4000
+        year |  4,000,000        10.5    5.766282          1         20
+          mu |  4,000,000     .027577    .9988746  -4.665688   3.887067
+           z |  4,000,000    .0000171    .1002408  -.4209009   .3880299
+         muz |  4,000,000     .027594    1.003659  -4.767271   3.837101
+-------------+---------------------------------------------------------
+          xb |  4,000,000   -.0004306    .9993555  -5.181991   5.038305
+           y |  4,000,000    .0281648    5.196904  -26.21865   25.75132
+          dy |  4,000,000     .169464    .3751613          0          1
+
+. compress
+  variable id was float now int
+  variable dy was float now byte
+  (20,000,000 bytes saved)
+
+. save test, replace
+file test.dta saved
+
+. 
+. /* can we correctly recover the moments? */
+. 
+. * regress y on xb and hosp-year fixed effects and save fe+e=y-xb
+. qui {
+  --------------------------------------------------------------------------------------- begin egen ---
+  - version 6, missing
+  - local cvers = _caller()
+  - gettoken type 0 : 0, parse(" =(")
+  - gettoken name 0 : 0, parse(" =(")
+  - if `"`name'"'=="=" {
+  = if `"="'=="=" {
+  - local name `"`type'"'
+  = local name `"id_yr"'
+  - local type : set type
+  - }
+  - else {
+    gettoken eqsign 0 : 0, parse(" =(")
+    if `"`eqsign'"' != "=" {
+    error 198
+    }
+    }
+  - confirm new variable `name'
+  = confirm new variable id_yr
+  - gettoken fcn 0 : 0, parse(" =(")
+  - gettoken args 0 : 0, parse(" ,") match(par)
+  - if "`c(adoarchive)'"=="1" {
+  = if ""=="1" {
+    capture qui _stfilearchive find _g`fcn'.ado
+    if _rc {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+    }
+  - else {
+  - capture qui findfile _g`fcn'.ado
+  = capture qui findfile _ggroup.ado
+  - if (`"`r(fn)'"' == "") {
+  = if (`"/Applications/Stata/ado/base/_/_ggroup.ado"' == "") {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+  - }
+  - if `"`par'"' != "(" {
+  = if `"("' != "(" {
+    exit 198
+    }
+  - if `"`args'"' == "_all" | `"`args'"' == "*" {
+  = if `"id year"' == "_all" | `"id year"' == "*" {
+    version 7.0, missing
+    unab args : _all
+    local args : subinstr local args "`_sortindex'" "", all word
+    version 6.0, missing
+    }
+  - syntax [if] [in] [, *]
+  - if _by() {
+    local byopt "by(`_byvars')"
+    local cma ","
+    }
+  - else if `"`options'"' != "" {
+  = else if `""' != "" {
+    local cma ","
+    }
+  - tempvar dummy
+  - global EGEN_Varname `name'
+  = global EGEN_Varname id_yr
+  - version 7.0, missing
+  - global EGEN_SVarname `_sortindex'
+  = global EGEN_SVarname __000000
+  - version 6.0, missing
+  - if inlist("`fcn'","mode","concat","group") {
+  = if inlist("group","mode","concat","group") {
+  - local vv : display "version " string(`cvers') ", missing:"
+  = local vv : display "version " string(18.5) ", missing:"
+  - }
+  - capture noisily `vv' _g`fcn' `type' `dummy' = (`args') `if' `in' `cma' `byopt' `options'
+  = capture noisily version 18.5, missing: _ggroup float __000001 = (id year)     
+  - version 7.0, missing
+  - local message $EGEN_Message
+  = local message 1
+  - version 6.0, missing
+  - global EGEN_SVarname
+  - global EGEN_Varname
+  - global EGEN_Message
+  - if _rc { exit _rc }
+  - if "`message'" == "" {
+  = if "1" == "" {
+    quietly count if missing(`dummy')
+    if r(N) {
+    local s = cond(r(N)>1,"s","")
+    local N : di %11.0fc r(N)
+    local N `N'
+    di in bl "(`N' missing value`s' generated)"
+    }
+    }
+  - rename `dummy' `name'
+  = rename __000001 id_yr
+  ----------------------------------------------------------------------------------------- end egen ---
+  --------------------------------------------------------------------------------------- begin areg ---
+  - if _by() {
+    local BY `"by `_byvars'`_byrc0':"'
+    }
+  - if _caller() < 12 {
+    `BY' areg_11 `0'
+    exit
+    }
+  - if replay() {
+    if `"`e(cmd)'"' != "areg" {
+    error 301
+    }
+    if _by() {
+    error 190
+    }
+    Replay `0'
+    exit
+    }
+  - local vv : di "version " string(_caller()) ":"
+  - version 12
+  - quietly syntax [anything] [aw fw pw] [if] [in] [, VCE(passthru) *]
+  - if `"`vce'"' != "" {
+  = if `""' != "" {
+    `vv' `BY' _vce_parserun areg, smark(Absorb CLuster) : `0'
+    if "`s(exit)'" != "" {
+    ereturn local cmdline `"areg `0'"'
+    exit
+    }
+    }
+  - quietly syntax [anything] [aw fw pw] [if] [in] [, noHEader noTABle Absorb(string) VCE(passthru) dfci
+>  DFPValues ITERate(string) TOLerance(string) NOLOG CLUSTERTable NOABSorbtest apmethod skip_aw_adjust *
+>  ]
+  - _get_diopts diopts options, `options'
+  = _get_diopts diopts options, 
+  - local opt OLS Robust
+  - local argopt CLuster
+  - if ("`vce'"!="") & ("`s(vcetype)'"=="hc2") {
+  = if (""!="") & (""=="hc2") {
+    _parse_hc2_vce, `vce'
+    if "`s(clustvar)'" != "" {
+    local argopt `argopt' HC2
+    }
+    else {
+    local opt `opt' HC2
+    }
+    local vce `"`s(vce)'"'
+    local pwaopt pwallowed(hc2)
+    }
+  - _vce_parse, argopt(`argopt') opt(`opt') old `pwaopt': [`weight'`exp'], `vce' `options'
+  = _vce_parse, argopt(CLuster) opt(OLS Robust) old : [],  
+  - if _caller() < 18.5 {
+    if !inlist(`"`r(cluster)'"', "", "`absorb'") {
+    `BY' areg_11 `0'
+    ereturn local cmdline `"areg `0'"'
+    ereturn hidden local estmethod areg_11
+    exit
+    }
+    }
+  - `BY' Estimate `0'
+  =  Estimate y xb, absorb(id_yr)
+  - ereturn local cmdline `"areg `0'"'
+  = ereturn local cmdline `"areg y xb, absorb(id_yr)"'
+  ----------------------------------------------------------------------------------------- end areg ---
+  ------------------------------------------------------------------------------------ begin predict ---
+  - version 8.2, missing
+  - if "`e(cmd)'" == "rocreg" & "`e(predict)'" == "" {
+  = if "areg" == "rocreg" & "areg_p" == "" {
+    di as err "predict not allowed after nonparametric ROC"
+    exit 198
+    }
+  - if "`e(mi)'"!="" & "`e(b)'"!="matrix" {
+  = if ""!="" & "matrix"!="matrix" {
+    error 321
+    }
+  - if _caller()<=5 | "`e(predict)'"=="" {
+  = if _caller()<=5 | "areg_p"=="" {
+    _predict `0'
+    }
+  - else {
+  - local v : display string(_caller())
+  - version `v', missing
+  = version 18.5, missing
+  - `e(predict)' `0'
+  = areg_p fe_e, dresid
+  - }
+  -------------------------------------------------------------------------------------- end predict ---
+  ---------------------------------------------------------------------------------------- begin reg ---
+  - if _by() {
+    local by "by `_byvars'`_byrc0':"
+    }
+  - `by' regress `0'
+  =  regress fe_e z
+  ------------------------------------------------------------------------------------------ end reg ---
+  ------------------------------------------------------------------------------------ begin predict ---
+  - version 8.2, missing
+  - if "`e(cmd)'" == "rocreg" & "`e(predict)'" == "" {
+  = if "regress" == "rocreg" & "regres_p" == "" {
+    di as err "predict not allowed after nonparametric ROC"
+    exit 198
+    }
+  - if "`e(mi)'"!="" & "`e(b)'"!="matrix" {
+  = if ""!="" & "matrix"!="matrix" {
+    error 321
+    }
+  - if _caller()<=5 | "`e(predict)'"=="" {
+  = if _caller()<=5 | "regres_p"=="" {
+    _predict `0'
+    }
+  - else {
+  - local v : display string(_caller())
+  - version `v', missing
+  = version 18.5, missing
+  - `e(predict)' `0'
+  = regres_p mu_e, resid
+  - }
+  -------------------------------------------------------------------------------------- end predict ---
+The estimated signal variance of mu is = 1.0005341; it should be = 1
+  ----------------------------------------------------------------------------------- begin collapse ---
+  - version 8, missing
+  - if _caller() < 5 {
+    collaps4 `0'
+    exit
+    }
+  - collapse_17 `0'
+  = collapse_17 mu_e, by(id year)
+  - if "`col17_graphbar'" != "" {
+  = if "" != "" {
+    c_local `col17_graphbar' "``col17_graphbar''"
+    }
+  ------------------------------------------------------------------------------------- end collapse ---
+  -------------------------------------------------------------------------------------- begin tsset ---
+  - version 10
+  - capture syntax [, MI noQUERY PANELNAME(passthru) DISPLAYINDENT(passthru) NOBLANK ]
+  - if (_rc==0) {
+    if ("`mi'"=="") {
+    u_mi_not_mi_set tsset
+    }
+    _ts tvar pvar, panel
+    local fmt: format `tvar'
+    local tsdelta : char _dta[_TSdelta]
+    if "`tsdelta'" == "" {
+    local tsdelta 1
+    }
+    tsset `pvar' `tvar', format(`fmt') delta((`tsdelta')) `mi' `query' `panelname' `displayindent' `nobl
+> ank'
+    ret add
+    exit
+    }
+  - syntax [varlist(numeric max=2 default=none)] [, CLEAR Daily Format(passthru) Generic Halfyearly Mont
+> hly Quarterly Weekly Yearly DELta(passthru) Clocktime FORCE MI noQUERY PANELNAME(passthru) DISPLAYINDE
+> NT(passthru) PANELLABEL(passthru) TSVARLABEL(passthru) NOBLANK ]
+  - if ("`mi'"=="") {
+  = if (""=="") {
+  - u_mi_not_mi_set tsset
+  - }
+  - else {
+    u_mi_check_setvars tsset `varlist'
+    }
+  - if ("`clear'" != "") {
+  = if ("" != "") {
+    syntax [, CLEAR MI]
+    Clear
+    exit
+    }
+  - if ("`varlist'"=="") {
+  = if ("id year"=="") {
+    _ts tvar pvar, panel
+    tsset `pvar' `tvar', `daily' `format' `generic' `halfyearly' `monthly' `quarterly' `weekly' `yearly'
+>  `clocktime' `mi' `delta' `query' `panelname' `displayindent' `panellabel' `tsvarlabel'
+    ret add
+    exit
+    }
+  - syntax varlist(numeric max=2 default=none) [ , CLEAR Daily Format(string) Generic Halfyearly Monthly
+>  Quarterly Weekly Yearly DELta(string) Clocktime FORCE MI noQUERY PANELNAME(string) DISPLAYINDENT(inte
+> ger 0) PANELLABEL(string) TSVARLABEL(string) NOBLANK ]
+  - local ct : word count `varlist'
+  = local ct : word count id year
+  - if `ct'==2 {
+  = if 2==2 {
+  - tokenize `varlist'
+  = tokenize id year
+  - local panel `1'
+  = local panel id
+  - local timevar `2'
+  = local timevar year
+  - }
+  - else {
+    local timevar `varlist'
+    }
+  - local period `daily' `weekly' `monthly' `quarterly' `halfyearly' `yearly' `generic' `clocktime'
+  = local period        
+  - if `"`format'"'!="" {
+  = if `""'!="" {
+    local dfltfmt "no"
+    if "`period'" != "" {
+    gettoken period : period
+    di in red "may not specify both {bf:format()} and {bf:`period'}"
+    exit 198
+    }
+    local try : di `format' 2
+    }
+  - else if "`period'" != "" {
+  = else if "" != "" {
+    local ct : word count `period'
+    if `ct' > 1 {
+    di as err "{p}may only specify one time-scale from " "{bf:daily}, {bf:weekly}, {bf:monthly}, " "{bf:
+> quarterly}, {bf:halfyearly}, " "{bf:yearly}, and {bf:generic}{p_end}"
+    exit 198
+    }
+    local format = "%t" + bsubstr("`period'",1,1)
+    if bsubstr("`period'", 1, 1) == "c" {
+    local dfltfmt "yes"
+    }
+    }
+  - else {
+  - local format : format `timevar'
+  = local format : format year
+  - }
+  - local curfmt : format `timevar'
+  = local curfmt : format year
+  - local curftyp = bsubstr("`curfmt'", 2, 1)
+  = local curftyp = bsubstr("%10.0g", 2, 1)
+  - if "`curftyp'" != "t" & "`curftyp'" != "d" {
+  = if "1" != "t" & "1" != "d" {
+  - local curftyp g
+  - }
+  - else if "`curftyp'" == "t" {
+  = else if "g" == "t" {
+    local curftyp = bsubstr("`curfmt'", 3, 1)
+    }
+  - local newftyp = bsubstr("`format'", 2, 1)
+  = local newftyp = bsubstr("%10.0g", 2, 1)
+  - if "`newftyp'" != "t" & "`newftyp'" != "d" {
+  = if "1" != "t" & "1" != "d" {
+  - local newftyp g
+  - }
+  - else if "`newftyp'" == "t" {
+  = else if "g" == "t" {
+    local newftyp = bsubstr("`format'", 3, 1)
+    }
+  - if "`curftyp'" != "`newftyp'" & "`curftyp'" != "g" {
+  = if "g" != "g" & "g" != "g" {
+    local shorty = abbrev("`timevar'", 13)
+    Period curftyp2 : "" "`curftyp'"
+    Period newftyp2 : "" "`newftyp'"
+    di as txt "{p 0 9 2}warning: Variable {bf:`shorty'} had been formatted {bf:`curfmt'} " "(a {bf:`curf
+> typ2'} period), and you asked for a {bf:`newftyp2'} period. " "Are you sure that is what you want? For
+> mat has been changed. " "{bf:`shorty'} is now formatted {bf:`format'}.{p_end}"
+    }
+  - else if "`curftyp'" == "`newftyp'" & "`dfltfmt'" != "no" {
+  = else if "g" == "g" & "" != "no" {
+  - local format `curfmt'
+  = local format %10.0g
+  - }
+  - capture assert int(`timevar')==`timevar'
+  = capture assert int(year)==year
+  - if _rc {
+    di in red "time variable must contain only integer values"
+    exit 451
+    }
+  - sort `panel' `timevar'
+  = sort id year
+  - if "`panel'" != "" {
+  = if "id" != "" {
+  - local bypfx "by `panel': "
+  = local bypfx "by id: "
+  - }
+  - if `"`format'"' != "" {
+  = if `"%10.0g"' != "" {
+  - format `timevar' `format'
+  = format year %10.0g
+  - }
+  - tempname scdelta
+  - mata: _TS_p_delta("`scdelta'", "`delta'", "`timevar'")
+  = mata: _TS_p_delta("__000000", "", "year")
+  - if `scdelta' == -2 {
+  = if __000000 == -2 {
+    di as err "invalid time-series format on {bf:`timevar'}"
+    exit 120
+    }
+  - if `scdelta' == -1 {
+  = if __000000 == -1 {
+    di as err "invalid argument in {bf:delta()}"
+    exit 198
+    }
+  - tempvar timedif
+  - qui `bypfx' gen double `timedif' = `timevar'[_n+1] - `timevar'
+  = qui by id:  gen double __000001 = year[_n+1] - year
+  - cap confirm variable `timedif'
+  = cap confirm variable __000001
+  - if _rc {
+    di as text "no observations"
+    exit
+    }
+  - qui sum `timedif', meanonly
+  = qui sum __000001, meanonly
+  - if r(min) == 0 {
+    if "`panel'" != "" {
+    di in red "repeated time values within panel"
+    }
+    else {
+    di in red "repeated time values in sample"
+    }
+    exit 451
+    }
+  - if "`force'" == "" {
+  = if "" == "" {
+  - if r(min) < `scdelta' {
+  = if r(min) < __000000 {
+    di in red "time values with period less than {bf:delta()} found"
+    exit 451
+    }
+  - }
+  - Clear
+  - nobreak {
+  - char _dta[_TStvar] "`timevar'"
+  = char _dta[_TStvar] "year"
+  - char _dta[_TSpanel] "`panel'"
+  = char _dta[_TSpanel] "id"
+  - char _dta[_TSdelta] `: di %21x `scdelta''
+  = char _dta[_TSdelta] +1.0000000000000X+000
+  - char _dta[_TSitrvl] 1
+  - char _dta[tis] "`timevar'"
+  = char _dta[tis] "year"
+  - char _dta[iis] "`panel'"
+  = char _dta[iis] "id"
+  - }
+  - if "`dfltfmt'" == "yes" & bsubstr("`format'", 3, 1) == "c" {
+  = if "" == "yes" & bsubstr("%10.0g", 3, 1) == "c" {
+    format `timevar' %tcDDmonCCYY_HH:MM:SS.sss
+    }
+  - if "`query'" == "" {
+  = if "" == "" {
+  - Query, panelname(`"`panelname'"') displayindent(`displayindent') panellabel(`panellabel') tsvarlabel
+> (`tsvarlabel') `noblank'
+  = Query, panelname(`""') displayindent(0) panellabel() tsvarlabel() 
+  - ret add
+  - }
+  - else {
+    ret scalar tdelta = `: char _dta[_TSdelta]'
+    }
+  - if "`dfltfmt'" == "yes" & bsubstr("`format'", 3, 1) == "c" {
+  = if "" == "yes" & bsubstr("%10.0g", 3, 1) == "c" {
+    format `timevar' %tc
+    }
+  - local fmt : format `timevar'
+  = local fmt : format year
+  - return local tsfmt `fmt'
+  = return local tsfmt %10.0g
+  - return local unit1 = bsubstr("`fmt'", 3, 1)
+  = return local unit1 = bsubstr("%10.0g", 3, 1)
+  - Period per : "`period'" `return(unit1)'
+  = Period per : "" 0
+  - return local unit `per'
+  = return local unit per : "" 0
+  - ret local timevar "`timevar'"
+  = ret local timevar "year"
+  - ret local panelvar "`panel'"
+  = ret local panelvar "id"
+  ---------------------------------------------------------------------------------------- end tsset ---
+- qui forval i=0/$loopyr {
+= qui forval i=0/19 {
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L0.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 0 " lags is = " r(cov_12) "; it should be = " (0!=0)*(.95)^(0) + (0
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 0 lags is = 1.5004157; it should be = 1.5
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L1.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 1 " lags is = " r(cov_12) "; it should be = " (1!=0)*(.95)^(1) + (1
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 1 lags is = .94769261; it should be = .95
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L2.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 2 " lags is = " r(cov_12) "; it should be = " (2!=0)*(.95)^(2) + (2
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 2 lags is = .90442647; it should be = .9025
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L3.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 3 " lags is = " r(cov_12) "; it should be = " (3!=0)*(.95)^(3) + (3
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 3 lags is = .85272806; it should be = .857375
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L4.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 4 " lags is = " r(cov_12) "; it should be = " (4!=0)*(.95)^(4) + (4
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 4 lags is = .81259218; it should be = .81450625
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L5.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 5 " lags is = " r(cov_12) "; it should be = " (5!=0)*(.95)^(5) + (5
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 5 lags is = .76951236; it should be = .77378094
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L6.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 6 " lags is = " r(cov_12) "; it should be = " (6!=0)*(.95)^(6) + (6
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 6 lags is = .73366751; it should be = .73509189
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L7.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 7 " lags is = " r(cov_12) "; it should be = " (7!=0)*(.95)^(7) + (7
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 7 lags is = .69273502; it should be = .6983373
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L8.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 8 " lags is = " r(cov_12) "; it should be = " (8!=0)*(.95)^(8) + (8
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 8 lags is = .66681163; it should be = .66342043
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L9.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 9 " lags is = " r(cov_12) "; it should be = " (9!=0)*(.95)^(9) + (9
+> ==0)*((1+((5)^2)/50))
+the estimated covar at 9 lags is = .63777624; it should be = .63024941
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L10.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 10 " lags is = " r(cov_12) "; it should be = " (10!=0)*(.95)^(10) +
+>  (10==0)*((1+((5)^2)/50))
+the estimated covar at 10 lags is = .60849104; it should be = .59873694
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L11.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 11 " lags is = " r(cov_12) "; it should be = " (11!=0)*(.95)^(11) +
+>  (11==0)*((1+((5)^2)/50))
+the estimated covar at 11 lags is = .57014489; it should be = .56880009
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L12.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 12 " lags is = " r(cov_12) "; it should be = " (12!=0)*(.95)^(12) +
+>  (12==0)*((1+((5)^2)/50))
+the estimated covar at 12 lags is = .54962995; it should be = .54036009
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L13.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 13 " lags is = " r(cov_12) "; it should be = " (13!=0)*(.95)^(13) +
+>  (13==0)*((1+((5)^2)/50))
+the estimated covar at 13 lags is = .51718268; it should be = .51334208
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L14.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 14 " lags is = " r(cov_12) "; it should be = " (14!=0)*(.95)^(14) +
+>  (14==0)*((1+((5)^2)/50))
+the estimated covar at 14 lags is = .49897278; it should be = .48767498
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L15.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 15 " lags is = " r(cov_12) "; it should be = " (15!=0)*(.95)^(15) +
+>  (15==0)*((1+((5)^2)/50))
+the estimated covar at 15 lags is = .46248373; it should be = .46329123
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L16.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 16 " lags is = " r(cov_12) "; it should be = " (16!=0)*(.95)^(16) +
+>  (16==0)*((1+((5)^2)/50))
+the estimated covar at 16 lags is = .44136705; it should be = .44012667
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L17.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 17 " lags is = " r(cov_12) "; it should be = " (17!=0)*(.95)^(17) +
+>  (17==0)*((1+((5)^2)/50))
+the estimated covar at 17 lags is = .41859032; it should be = .41812034
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L18.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 18 " lags is = " r(cov_12) "; it should be = " (18!=0)*(.95)^(18) +
+>  (18==0)*((1+((5)^2)/50))
+the estimated covar at 18 lags is = .3995614; it should be = .39721432
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L19.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($delta)^(
+> `i') + (`i'==0)*((1+(($sd_resid)^2)/$npat))
+= noi disp "the estimated covar at " 19 " lags is = " r(cov_12) "; it should be = " (19!=0)*(.95)^(19) +
+>  (19==0)*((1+((5)^2)/50))
+the estimated covar at 19 lags is = .38387628; it should be = .3773536
+- }
+
+. clear
+  -------------------------------------------------------------------------------------- begin clear ---
+  - if _caller() < 10 {
+    _clear_9 `0'
+    exit
+    }
+  - version 10
+  - syntax [anything]
+  - tokenize `anything'
+  = tokenize 
+  - if `"`2'"' != "" {
+  = if `""' != "" {
+    display as err "`2' not allowed"
+    exit 198
+    }
+  - if "`1'"=="" {
+  = if ""=="" {
+  - drop _all
+  - label drop _all
+  - }
+  - else if "`1'"=="collect" {
+  = else if ""=="collect" {
+    collect clear
+    }
+  - else if "`1'"=="frames" {
+  = else if ""=="frames" {
+    frames reset
+    }
+  - else if "`1'"=="mata" {
+  = else if ""=="mata" {
+    mata: mata clear
+    }
+  - else if "`1'"=="python" {
+  = else if ""=="python" {
+    python clear
+    }
+  - else if "`1'"=="java" {
+  = else if ""=="java" {
+    java clear
+    }
+  - else if inlist("`1'", "results", "matrix") {
+  = else if inlist("", "results", "matrix") {
+    return clear
+    clearreturn
+    ereturn clear
+    sreturn clear
+    _return drop _all
+    if ("`1'" == "matrix") {
+    matrix drop _all
+    _est drop _all
+    }
+    }
+  - else if "`1'"=="programs" {
+  = else if ""=="programs" {
+    program drop _all
+    }
+  - else if "`1'"=="ado" {
+  = else if ""=="ado" {
+    program drop _allado
+    }
+  - else if "`1'"=="rngstream" | "`1'"=="rngstreams" {
+  = else if ""=="rngstream" | ""=="rngstreams" {
+    set rngstream clear
+    }
+  - else if "`1'"=="*" | "`1'"=="all" {
+  = else if ""=="*" | ""=="all" {
+    capture mata: st_local("semmods", strofreal(sg__global.hasmodels()))
+    capture
+    if (0`semmods') {
+    display as err "-clear all- not allowed while an SEM Builder is open"
+    exit 1
+    }
+    drop _all
+    frames reset
+    label drop _all
+    matrix drop _all
+    scalar drop _all
+    constraint drop _all
+    eq drop _all
+    file close _all
+    postutil clear
+    _return drop _all
+    discard
+    collect clear
+    program drop _all
+    timer clear
+    mata: _st__put_cmd_clear()
+    mata: mata clear
+    python clear
+    java clear
+    }
+  - else {
+    display as err "`1' not allowed"
+    exit 198
+    }
+  ---------------------------------------------------------------------------------------- end clear ---
+
+. 
+. /* repeat replacing y with dy */
+. /* not sure what estimates should be exactly, but assume that covariance is (delta^lag)*signal varianc
+> e of mu. */
+. /*  and used sd_e from fe regression in place of sd_resid */
+. 
+. use test, clear
+
+. replace y=dy
+(4,000,000 real changes made)
+
+. * regress y on xb and hosp-year fixed effects and save fe+e=y-xb
+. qui {
+  --------------------------------------------------------------------------------------- begin egen ---
+  - version 6, missing
+  - local cvers = _caller()
+  - gettoken type 0 : 0, parse(" =(")
+  - gettoken name 0 : 0, parse(" =(")
+  - if `"`name'"'=="=" {
+  = if `"="'=="=" {
+  - local name `"`type'"'
+  = local name `"id_yr"'
+  - local type : set type
+  - }
+  - else {
+    gettoken eqsign 0 : 0, parse(" =(")
+    if `"`eqsign'"' != "=" {
+    error 198
+    }
+    }
+  - confirm new variable `name'
+  = confirm new variable id_yr
+  - gettoken fcn 0 : 0, parse(" =(")
+  - gettoken args 0 : 0, parse(" ,") match(par)
+  - if "`c(adoarchive)'"=="1" {
+  = if ""=="1" {
+    capture qui _stfilearchive find _g`fcn'.ado
+    if _rc {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+    }
+  - else {
+  - capture qui findfile _g`fcn'.ado
+  = capture qui findfile _ggroup.ado
+  - if (`"`r(fn)'"' == "") {
+  = if (`"/Applications/Stata/ado/base/_/_ggroup.ado"' == "") {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+  - }
+  - if `"`par'"' != "(" {
+  = if `"("' != "(" {
+    exit 198
+    }
+  - if `"`args'"' == "_all" | `"`args'"' == "*" {
+  = if `"id year"' == "_all" | `"id year"' == "*" {
+    version 7.0, missing
+    unab args : _all
+    local args : subinstr local args "`_sortindex'" "", all word
+    version 6.0, missing
+    }
+  - syntax [if] [in] [, *]
+  - if _by() {
+    local byopt "by(`_byvars')"
+    local cma ","
+    }
+  - else if `"`options'"' != "" {
+  = else if `""' != "" {
+    local cma ","
+    }
+  - tempvar dummy
+  - global EGEN_Varname `name'
+  = global EGEN_Varname id_yr
+  - version 7.0, missing
+  - global EGEN_SVarname `_sortindex'
+  = global EGEN_SVarname __000000
+  - version 6.0, missing
+  - if inlist("`fcn'","mode","concat","group") {
+  = if inlist("group","mode","concat","group") {
+  - local vv : display "version " string(`cvers') ", missing:"
+  = local vv : display "version " string(18.5) ", missing:"
+  - }
+  - capture noisily `vv' _g`fcn' `type' `dummy' = (`args') `if' `in' `cma' `byopt' `options'
+  = capture noisily version 18.5, missing: _ggroup float __000001 = (id year)     
+  - version 7.0, missing
+  - local message $EGEN_Message
+  = local message 1
+  - version 6.0, missing
+  - global EGEN_SVarname
+  - global EGEN_Varname
+  - global EGEN_Message
+  - if _rc { exit _rc }
+  - if "`message'" == "" {
+  = if "1" == "" {
+    quietly count if missing(`dummy')
+    if r(N) {
+    local s = cond(r(N)>1,"s","")
+    local N : di %11.0fc r(N)
+    local N `N'
+    di in bl "(`N' missing value`s' generated)"
+    }
+    }
+  - rename `dummy' `name'
+  = rename __000001 id_yr
+  ----------------------------------------------------------------------------------------- end egen ---
+  --------------------------------------------------------------------------------------- begin areg ---
+  - if _by() {
+    local BY `"by `_byvars'`_byrc0':"'
+    }
+  - if _caller() < 12 {
+    `BY' areg_11 `0'
+    exit
+    }
+  - if replay() {
+    if `"`e(cmd)'"' != "areg" {
+    error 301
+    }
+    if _by() {
+    error 190
+    }
+    Replay `0'
+    exit
+    }
+  - local vv : di "version " string(_caller()) ":"
+  - version 12
+  - quietly syntax [anything] [aw fw pw] [if] [in] [, VCE(passthru) *]
+  - if `"`vce'"' != "" {
+  = if `""' != "" {
+    `vv' `BY' _vce_parserun areg, smark(Absorb CLuster) : `0'
+    if "`s(exit)'" != "" {
+    ereturn local cmdline `"areg `0'"'
+    exit
+    }
+    }
+  - quietly syntax [anything] [aw fw pw] [if] [in] [, noHEader noTABle Absorb(string) VCE(passthru) dfci
+>  DFPValues ITERate(string) TOLerance(string) NOLOG CLUSTERTable NOABSorbtest apmethod skip_aw_adjust *
+>  ]
+  - _get_diopts diopts options, `options'
+  = _get_diopts diopts options, 
+  - local opt OLS Robust
+  - local argopt CLuster
+  - if ("`vce'"!="") & ("`s(vcetype)'"=="hc2") {
+  = if (""!="") & (""=="hc2") {
+    _parse_hc2_vce, `vce'
+    if "`s(clustvar)'" != "" {
+    local argopt `argopt' HC2
+    }
+    else {
+    local opt `opt' HC2
+    }
+    local vce `"`s(vce)'"'
+    local pwaopt pwallowed(hc2)
+    }
+  - _vce_parse, argopt(`argopt') opt(`opt') old `pwaopt': [`weight'`exp'], `vce' `options'
+  = _vce_parse, argopt(CLuster) opt(OLS Robust) old : [],  
+  - if _caller() < 18.5 {
+    if !inlist(`"`r(cluster)'"', "", "`absorb'") {
+    `BY' areg_11 `0'
+    ereturn local cmdline `"areg `0'"'
+    ereturn hidden local estmethod areg_11
+    exit
+    }
+    }
+  - `BY' Estimate `0'
+  =  Estimate y xb, absorb(id_yr)
+  - ereturn local cmdline `"areg `0'"'
+  = ereturn local cmdline `"areg y xb, absorb(id_yr)"'
+  ----------------------------------------------------------------------------------------- end areg ---
+  ------------------------------------------------------------------------------------ begin predict ---
+  - version 8.2, missing
+  - if "`e(cmd)'" == "rocreg" & "`e(predict)'" == "" {
+  = if "areg" == "rocreg" & "areg_p" == "" {
+    di as err "predict not allowed after nonparametric ROC"
+    exit 198
+    }
+  - if "`e(mi)'"!="" & "`e(b)'"!="matrix" {
+  = if ""!="" & "matrix"!="matrix" {
+    error 321
+    }
+  - if _caller()<=5 | "`e(predict)'"=="" {
+  = if _caller()<=5 | "areg_p"=="" {
+    _predict `0'
+    }
+  - else {
+  - local v : display string(_caller())
+  - version `v', missing
+  = version 18.5, missing
+  - `e(predict)' `0'
+  = areg_p fe_e, dresid
+  - }
+  -------------------------------------------------------------------------------------- end predict ---
+  ---------------------------------------------------------------------------------------- begin reg ---
+  - if _by() {
+    local by "by `_byvars'`_byrc0':"
+    }
+  - `by' regress `0'
+  =  regress fe_e z
+  ------------------------------------------------------------------------------------------ end reg ---
+  ------------------------------------------------------------------------------------ begin predict ---
+  - version 8.2, missing
+  - if "`e(cmd)'" == "rocreg" & "`e(predict)'" == "" {
+  = if "regress" == "rocreg" & "regres_p" == "" {
+    di as err "predict not allowed after nonparametric ROC"
+    exit 198
+    }
+  - if "`e(mi)'"!="" & "`e(b)'"!="matrix" {
+  = if ""!="" & "matrix"!="matrix" {
+    error 321
+    }
+  - if _caller()<=5 | "`e(predict)'"=="" {
+  = if _caller()<=5 | "regres_p"=="" {
+    _predict `0'
+    }
+  - else {
+  - local v : display string(_caller())
+  - version `v', missing
+  = version 18.5, missing
+  - `e(predict)' `0'
+  = regres_p mu_e, resid
+  - }
+  -------------------------------------------------------------------------------------- end predict ---
+The estimated signal variance of mu is = .00239878; Use this estimate to calculate expected below
+  ----------------------------------------------------------------------------------- begin collapse ---
+  - version 8, missing
+  - if _caller() < 5 {
+    collaps4 `0'
+    exit
+    }
+  - collapse_17 `0'
+  = collapse_17 mu_e, by(id year)
+  - if "`col17_graphbar'" != "" {
+  = if "" != "" {
+    c_local `col17_graphbar' "``col17_graphbar''"
+    }
+  ------------------------------------------------------------------------------------- end collapse ---
+  -------------------------------------------------------------------------------------- begin tsset ---
+  - version 10
+  - capture syntax [, MI noQUERY PANELNAME(passthru) DISPLAYINDENT(passthru) NOBLANK ]
+  - if (_rc==0) {
+    if ("`mi'"=="") {
+    u_mi_not_mi_set tsset
+    }
+    _ts tvar pvar, panel
+    local fmt: format `tvar'
+    local tsdelta : char _dta[_TSdelta]
+    if "`tsdelta'" == "" {
+    local tsdelta 1
+    }
+    tsset `pvar' `tvar', format(`fmt') delta((`tsdelta')) `mi' `query' `panelname' `displayindent' `nobl
+> ank'
+    ret add
+    exit
+    }
+  - syntax [varlist(numeric max=2 default=none)] [, CLEAR Daily Format(passthru) Generic Halfyearly Mont
+> hly Quarterly Weekly Yearly DELta(passthru) Clocktime FORCE MI noQUERY PANELNAME(passthru) DISPLAYINDE
+> NT(passthru) PANELLABEL(passthru) TSVARLABEL(passthru) NOBLANK ]
+  - if ("`mi'"=="") {
+  = if (""=="") {
+  - u_mi_not_mi_set tsset
+  - }
+  - else {
+    u_mi_check_setvars tsset `varlist'
+    }
+  - if ("`clear'" != "") {
+  = if ("" != "") {
+    syntax [, CLEAR MI]
+    Clear
+    exit
+    }
+  - if ("`varlist'"=="") {
+  = if ("id year"=="") {
+    _ts tvar pvar, panel
+    tsset `pvar' `tvar', `daily' `format' `generic' `halfyearly' `monthly' `quarterly' `weekly' `yearly'
+>  `clocktime' `mi' `delta' `query' `panelname' `displayindent' `panellabel' `tsvarlabel'
+    ret add
+    exit
+    }
+  - syntax varlist(numeric max=2 default=none) [ , CLEAR Daily Format(string) Generic Halfyearly Monthly
+>  Quarterly Weekly Yearly DELta(string) Clocktime FORCE MI noQUERY PANELNAME(string) DISPLAYINDENT(inte
+> ger 0) PANELLABEL(string) TSVARLABEL(string) NOBLANK ]
+  - local ct : word count `varlist'
+  = local ct : word count id year
+  - if `ct'==2 {
+  = if 2==2 {
+  - tokenize `varlist'
+  = tokenize id year
+  - local panel `1'
+  = local panel id
+  - local timevar `2'
+  = local timevar year
+  - }
+  - else {
+    local timevar `varlist'
+    }
+  - local period `daily' `weekly' `monthly' `quarterly' `halfyearly' `yearly' `generic' `clocktime'
+  = local period        
+  - if `"`format'"'!="" {
+  = if `""'!="" {
+    local dfltfmt "no"
+    if "`period'" != "" {
+    gettoken period : period
+    di in red "may not specify both {bf:format()} and {bf:`period'}"
+    exit 198
+    }
+    local try : di `format' 2
+    }
+  - else if "`period'" != "" {
+  = else if "" != "" {
+    local ct : word count `period'
+    if `ct' > 1 {
+    di as err "{p}may only specify one time-scale from " "{bf:daily}, {bf:weekly}, {bf:monthly}, " "{bf:
+> quarterly}, {bf:halfyearly}, " "{bf:yearly}, and {bf:generic}{p_end}"
+    exit 198
+    }
+    local format = "%t" + bsubstr("`period'",1,1)
+    if bsubstr("`period'", 1, 1) == "c" {
+    local dfltfmt "yes"
+    }
+    }
+  - else {
+  - local format : format `timevar'
+  = local format : format year
+  - }
+  - local curfmt : format `timevar'
+  = local curfmt : format year
+  - local curftyp = bsubstr("`curfmt'", 2, 1)
+  = local curftyp = bsubstr("%10.0g", 2, 1)
+  - if "`curftyp'" != "t" & "`curftyp'" != "d" {
+  = if "1" != "t" & "1" != "d" {
+  - local curftyp g
+  - }
+  - else if "`curftyp'" == "t" {
+  = else if "g" == "t" {
+    local curftyp = bsubstr("`curfmt'", 3, 1)
+    }
+  - local newftyp = bsubstr("`format'", 2, 1)
+  = local newftyp = bsubstr("%10.0g", 2, 1)
+  - if "`newftyp'" != "t" & "`newftyp'" != "d" {
+  = if "1" != "t" & "1" != "d" {
+  - local newftyp g
+  - }
+  - else if "`newftyp'" == "t" {
+  = else if "g" == "t" {
+    local newftyp = bsubstr("`format'", 3, 1)
+    }
+  - if "`curftyp'" != "`newftyp'" & "`curftyp'" != "g" {
+  = if "g" != "g" & "g" != "g" {
+    local shorty = abbrev("`timevar'", 13)
+    Period curftyp2 : "" "`curftyp'"
+    Period newftyp2 : "" "`newftyp'"
+    di as txt "{p 0 9 2}warning: Variable {bf:`shorty'} had been formatted {bf:`curfmt'} " "(a {bf:`curf
+> typ2'} period), and you asked for a {bf:`newftyp2'} period. " "Are you sure that is what you want? For
+> mat has been changed. " "{bf:`shorty'} is now formatted {bf:`format'}.{p_end}"
+    }
+  - else if "`curftyp'" == "`newftyp'" & "`dfltfmt'" != "no" {
+  = else if "g" == "g" & "" != "no" {
+  - local format `curfmt'
+  = local format %10.0g
+  - }
+  - capture assert int(`timevar')==`timevar'
+  = capture assert int(year)==year
+  - if _rc {
+    di in red "time variable must contain only integer values"
+    exit 451
+    }
+  - sort `panel' `timevar'
+  = sort id year
+  - if "`panel'" != "" {
+  = if "id" != "" {
+  - local bypfx "by `panel': "
+  = local bypfx "by id: "
+  - }
+  - if `"`format'"' != "" {
+  = if `"%10.0g"' != "" {
+  - format `timevar' `format'
+  = format year %10.0g
+  - }
+  - tempname scdelta
+  - mata: _TS_p_delta("`scdelta'", "`delta'", "`timevar'")
+  = mata: _TS_p_delta("__000000", "", "year")
+  - if `scdelta' == -2 {
+  = if __000000 == -2 {
+    di as err "invalid time-series format on {bf:`timevar'}"
+    exit 120
+    }
+  - if `scdelta' == -1 {
+  = if __000000 == -1 {
+    di as err "invalid argument in {bf:delta()}"
+    exit 198
+    }
+  - tempvar timedif
+  - qui `bypfx' gen double `timedif' = `timevar'[_n+1] - `timevar'
+  = qui by id:  gen double __000001 = year[_n+1] - year
+  - cap confirm variable `timedif'
+  = cap confirm variable __000001
+  - if _rc {
+    di as text "no observations"
+    exit
+    }
+  - qui sum `timedif', meanonly
+  = qui sum __000001, meanonly
+  - if r(min) == 0 {
+    if "`panel'" != "" {
+    di in red "repeated time values within panel"
+    }
+    else {
+    di in red "repeated time values in sample"
+    }
+    exit 451
+    }
+  - if "`force'" == "" {
+  = if "" == "" {
+  - if r(min) < `scdelta' {
+  = if r(min) < __000000 {
+    di in red "time values with period less than {bf:delta()} found"
+    exit 451
+    }
+  - }
+  - Clear
+  - nobreak {
+  - char _dta[_TStvar] "`timevar'"
+  = char _dta[_TStvar] "year"
+  - char _dta[_TSpanel] "`panel'"
+  = char _dta[_TSpanel] "id"
+  - char _dta[_TSdelta] `: di %21x `scdelta''
+  = char _dta[_TSdelta] +1.0000000000000X+000
+  - char _dta[_TSitrvl] 1
+  - char _dta[tis] "`timevar'"
+  = char _dta[tis] "year"
+  - char _dta[iis] "`panel'"
+  = char _dta[iis] "id"
+  - }
+  - if "`dfltfmt'" == "yes" & bsubstr("`format'", 3, 1) == "c" {
+  = if "" == "yes" & bsubstr("%10.0g", 3, 1) == "c" {
+    format `timevar' %tcDDmonCCYY_HH:MM:SS.sss
+    }
+  - if "`query'" == "" {
+  = if "" == "" {
+  - Query, panelname(`"`panelname'"') displayindent(`displayindent') panellabel(`panellabel') tsvarlabel
+> (`tsvarlabel') `noblank'
+  = Query, panelname(`""') displayindent(0) panellabel() tsvarlabel() 
+  - ret add
+  - }
+  - else {
+    ret scalar tdelta = `: char _dta[_TSdelta]'
+    }
+  - if "`dfltfmt'" == "yes" & bsubstr("`format'", 3, 1) == "c" {
+  = if "" == "yes" & bsubstr("%10.0g", 3, 1) == "c" {
+    format `timevar' %tc
+    }
+  - local fmt : format `timevar'
+  = local fmt : format year
+  - return local tsfmt `fmt'
+  = return local tsfmt %10.0g
+  - return local unit1 = bsubstr("`fmt'", 3, 1)
+  = return local unit1 = bsubstr("%10.0g", 3, 1)
+  - Period per : "`period'" `return(unit1)'
+  = Period per : "" 0
+  - return local unit `per'
+  = return local unit per : "" 0
+  - ret local timevar "`timevar'"
+  = ret local timevar "year"
+  - ret local panelvar "`panel'"
+  = ret local panelvar "id"
+  ---------------------------------------------------------------------------------------- end tsset ---
+- qui forval i=0/$loopyr {
+= qui forval i=0/19 {
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L0.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 0 " lags is = " r(cov_12) "; it should be = " (0!=0)*(.002398784156
+> 9294)*(.95)^(0) + (0==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 0 lags is = .00511824; it should be = .00511817
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L1.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 1 " lags is = " r(cov_12) "; it should be = " (1!=0)*(.002398784156
+> 9294)*(.95)^(1) + (1==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 1 lags is = .00225916; it should be = .00227884
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L2.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 2 " lags is = " r(cov_12) "; it should be = " (2!=0)*(.002398784156
+> 9294)*(.95)^(2) + (2==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 2 lags is = .00215374; it should be = .0021649
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L3.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 3 " lags is = " r(cov_12) "; it should be = " (3!=0)*(.002398784156
+> 9294)*(.95)^(3) + (3==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 3 lags is = .0020417; it should be = .00205666
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L4.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 4 " lags is = " r(cov_12) "; it should be = " (4!=0)*(.002398784156
+> 9294)*(.95)^(4) + (4==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 4 lags is = .00194545; it should be = .00195382
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L5.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 5 " lags is = " r(cov_12) "; it should be = " (5!=0)*(.002398784156
+> 9294)*(.95)^(5) + (5==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 5 lags is = .00182235; it should be = .00185613
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L6.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 6 " lags is = " r(cov_12) "; it should be = " (6!=0)*(.002398784156
+> 9294)*(.95)^(6) + (6==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 6 lags is = .00173229; it should be = .00176333
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L7.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 7 " lags is = " r(cov_12) "; it should be = " (7!=0)*(.002398784156
+> 9294)*(.95)^(7) + (7==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 7 lags is = .001645; it should be = .00167516
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L8.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 8 " lags is = " r(cov_12) "; it should be = " (8!=0)*(.002398784156
+> 9294)*(.95)^(8) + (8==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 8 lags is = .00157654; it should be = .0015914
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L9.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 9 " lags is = " r(cov_12) "; it should be = " (9!=0)*(.002398784156
+> 9294)*(.95)^(9) + (9==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 9 lags is = .0015051; it should be = .00151183
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L10.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 10 " lags is = " r(cov_12) "; it should be = " (10!=0)*(.0023987841
+> 569294)*(.95)^(10) + (10==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 10 lags is = .00144427; it should be = .00143624
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L11.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 11 " lags is = " r(cov_12) "; it should be = " (11!=0)*(.0023987841
+> 569294)*(.95)^(11) + (11==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 11 lags is = .00132958; it should be = .00136443
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L12.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 12 " lags is = " r(cov_12) "; it should be = " (12!=0)*(.0023987841
+> 569294)*(.95)^(12) + (12==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 12 lags is = .00128697; it should be = .00129621
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L13.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 13 " lags is = " r(cov_12) "; it should be = " (13!=0)*(.0023987841
+> 569294)*(.95)^(13) + (13==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 13 lags is = .00119793; it should be = .0012314
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L14.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 14 " lags is = " r(cov_12) "; it should be = " (14!=0)*(.0023987841
+> 569294)*(.95)^(14) + (14==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 14 lags is = .00118207; it should be = .00116983
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L15.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 15 " lags is = " r(cov_12) "; it should be = " (15!=0)*(.0023987841
+> 569294)*(.95)^(15) + (15==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 15 lags is = .00105983; it should be = .00111134
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L16.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 16 " lags is = " r(cov_12) "; it should be = " (16!=0)*(.0023987841
+> 569294)*(.95)^(16) + (16==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 16 lags is = .0010227; it should be = .00105577
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L17.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 17 " lags is = " r(cov_12) "; it should be = " (17!=0)*(.0023987841
+> 569294)*(.95)^(17) + (17==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 17 lags is = .00093677; it should be = .00100298
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L18.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 18 " lags is = " r(cov_12) "; it should be = " (18!=0)*(.0023987841
+> 569294)*(.95)^(18) + (18==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 18 lags is = .0009602; it should be = .00095283
+- }
+- corr mu_e L`i'.mu_e, cov
+= corr mu_e L19.mu_e, cov
+- noi disp "the estimated covar at " `i' " lags is = " r(cov_12) "; it should be = " (`i'!=0)*($sig_var)
+> *($delta)^(`i') + (`i'==0)*(($sig_var+(($sd_e)^2)/$npat))
+= noi disp "the estimated covar at " 19 " lags is = " r(cov_12) "; it should be = " (19!=0)*(.0023987841
+> 569294)*(.95)^(19) + (19==0)*((.0023987841569294+((.3687403324252018)^2)/50))
+the estimated covar at 19 lags is = .00094291; it should be = .00090519
+- }
+
+. 
+. 
+end of do-file
+
+. do /var/folders/ph/j5ln2nv51nb0mbb17g555l00t24pfm/T/StataRun1742437638059.do
+
+. /*******************************************************************************
+> Test Suite: VAMHOSP
+> Purpose: Tests functionality of vamhosp estimator
+> *******************************************************************************/
+. 
+. clear all
+  -------------------------------------------------------------------------------------- begin clear ---
+  - if _caller() < 10 {
+    _clear_9 `0'
+    exit
+    }
+  - version 10
+  - syntax [anything]
+  - tokenize `anything'
+  = tokenize all
+  - if `"`2'"' != "" {
+  = if `""' != "" {
+    display as err "`2' not allowed"
+    exit 198
+    }
+  - if "`1'"=="" {
+  = if "all"=="" {
+    drop _all
+    label drop _all
+    }
+  - else if "`1'"=="collect" {
+  = else if "all"=="collect" {
+    collect clear
+    }
+  - else if "`1'"=="frames" {
+  = else if "all"=="frames" {
+    frames reset
+    }
+  - else if "`1'"=="mata" {
+  = else if "all"=="mata" {
+    mata: mata clear
+    }
+  - else if "`1'"=="python" {
+  = else if "all"=="python" {
+    python clear
+    }
+  - else if "`1'"=="java" {
+  = else if "all"=="java" {
+    java clear
+    }
+  - else if inlist("`1'", "results", "matrix") {
+  = else if inlist("all", "results", "matrix") {
+    return clear
+    clearreturn
+    ereturn clear
+    sreturn clear
+    _return drop _all
+    if ("`1'" == "matrix") {
+    matrix drop _all
+    _est drop _all
+    }
+    }
+  - else if "`1'"=="programs" {
+  = else if "all"=="programs" {
+    program drop _all
+    }
+  - else if "`1'"=="ado" {
+  = else if "all"=="ado" {
+    program drop _allado
+    }
+  - else if "`1'"=="rngstream" | "`1'"=="rngstreams" {
+  = else if "all"=="rngstream" | "all"=="rngstreams" {
+    set rngstream clear
+    }
+  - else if "`1'"=="*" | "`1'"=="all" {
+  = else if "all"=="*" | "all"=="all" {
+  - capture mata: st_local("semmods", strofreal(sg__global.hasmodels()))
+  - capture
+  - if (0`semmods') {
+  = if (0) {
+    display as err "-clear all- not allowed while an SEM Builder is open"
+    exit 1
+    }
+  - drop _all
+  - frames reset
+  - label drop _all
+  - matrix drop _all
+  - scalar drop _all
+  - constraint drop _all
+  - eq drop _all
+  - file close _all
+  - postutil clear
+  - _return drop _all
+  - discard
+  - collect clear
+  - program drop _all
+  - timer clear
+  - mata: _st__put_cmd_clear()
+  - mata: mata clear
+  - python clear
+  - java clear
+  - }
+  - else {
+    display as err "`1' not allowed"
+    exit 198
+    }
+  ---------------------------------------------------------------------------------------- end clear ---
+
+. mata: mata clear
+
+. capture log close

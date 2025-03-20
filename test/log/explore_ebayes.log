@@ -1,0 +1,1011 @@
+--------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/mad265/git-pub/hospital_ebayes/test/log/explore_ebayes.log
+  log type:  text
+ opened on:  19 Mar 2025, 22:26:39
+
+. 
+. set seed 12345
+
+. 
+. * Parameters
+. global N_hospitals = 100     // Reasonable number of hospitals
+
+. global N_years = 5          // 5-year panel (2015-2019)
+
+. global N_patients_mean = 200 // Average patients per hospital-year
+
+. global base_year = 2015     // Starting year
+
+. 
+. * Create hospital-level dataset first
+. clear
+  -------------------------------------------------------------------------------------- begin clear ---
+  - if _caller() < 10 {
+    _clear_9 `0'
+    exit
+    }
+  - version 10
+  - syntax [anything]
+  - tokenize `anything'
+  = tokenize 
+  - if `"`2'"' != "" {
+  = if `""' != "" {
+    display as err "`2' not allowed"
+    exit 198
+    }
+  - if "`1'"=="" {
+  = if ""=="" {
+  - drop _all
+  - label drop _all
+  - }
+  - else if "`1'"=="collect" {
+  = else if ""=="collect" {
+    collect clear
+    }
+  - else if "`1'"=="frames" {
+  = else if ""=="frames" {
+    frames reset
+    }
+  - else if "`1'"=="mata" {
+  = else if ""=="mata" {
+    mata: mata clear
+    }
+  - else if "`1'"=="python" {
+  = else if ""=="python" {
+    python clear
+    }
+  - else if "`1'"=="java" {
+  = else if ""=="java" {
+    java clear
+    }
+  - else if inlist("`1'", "results", "matrix") {
+  = else if inlist("", "results", "matrix") {
+    return clear
+    clearreturn
+    ereturn clear
+    sreturn clear
+    _return drop _all
+    if ("`1'" == "matrix") {
+    matrix drop _all
+    _est drop _all
+    }
+    }
+  - else if "`1'"=="programs" {
+  = else if ""=="programs" {
+    program drop _all
+    }
+  - else if "`1'"=="ado" {
+  = else if ""=="ado" {
+    program drop _allado
+    }
+  - else if "`1'"=="rngstream" | "`1'"=="rngstreams" {
+  = else if ""=="rngstream" | ""=="rngstreams" {
+    set rngstream clear
+    }
+  - else if "`1'"=="*" | "`1'"=="all" {
+  = else if ""=="*" | ""=="all" {
+    capture mata: st_local("semmods", strofreal(sg__global.hasmodels()))
+    capture
+    if (0`semmods') {
+    display as err "-clear all- not allowed while an SEM Builder is open"
+    exit 1
+    }
+    drop _all
+    frames reset
+    label drop _all
+    matrix drop _all
+    scalar drop _all
+    constraint drop _all
+    eq drop _all
+    file close _all
+    postutil clear
+    _return drop _all
+    discard
+    collect clear
+    program drop _all
+    timer clear
+    mata: _st__put_cmd_clear()
+    mata: mata clear
+    python clear
+    java clear
+    }
+  - else {
+    display as err "`1' not allowed"
+    exit 198
+    }
+  ---------------------------------------------------------------------------------------- end clear ---
+
+. set obs $N_hospitals
+Number of observations (_N) was 0, now 100.
+
+. 
+. * Generate hospital IDs and fixed characteristics
+. gen long hospitalid = _n
+
+. gen double baseline_quality = rnormal(0, 0.5)  // Underlying hospital quality
+
+. 
+. * Expand to create panel
+. expand $N_years
+(400 observations created)
+
+. bysort hospitalid: gen year = $base_year + _n - 1
+
+. 
+. * Generate time-varying hospital characteristics
+. gen double volume = round(exp(rnormal(5, 0.5)))  // Log-normal distribution for volume
+
+. replace volume = volume * (1 + 0.2*rnormal()) // Add some year-to-year variation
+(500 real changes made)
+
+. replace volume = max(50, volume) // Ensure minimum volume
+(14 real changes made)
+
+. 
+. * Generate time-varying quality (AR(1) process)
+. gen double quality_shock = rnormal(0, 0.3)
+
+. bysort hospitalid (year): replace quality_shock = ///
+>     0.7 * quality_shock[_n-1] + 0.3 * rnormal(0, 0.3) if _n > 1
+(400 real changes made)
+
+. 
+. * Combine fixed and time-varying quality
+. gen double true_quality = baseline_quality + quality_shock
+
+. 
+. * Generate varying number of patients per hospital-year
+. gen long n_patients = round($N_patients_mean * (1 + 0.3*rnormal()))
+
+. replace n_patients = max(30, n_patients) // Ensure minimum patients
+(0 real changes made)
+
+. 
+. * Expand to patient level
+. expand n_patients
+(99,815 observations created)
+
+. bysort hospitalid year: gen patient_id = _n
+
+. 
+. * Generate patient characteristics
+. gen double age = 65 + 15*rnormal()
+
+. replace age = max(40, min(90, age))  // Bound between 40-90
+(9,532 real changes made)
+
+. gen byte female = runiform() < 0.5
+
+. gen double severity = max(0, rnormal(1, 0.3))
+
+. gen byte emergency = runiform() < 0.2
+
+. 
+. * Generate class/ward assignment (3 wards per hospital)
+. gen int ward = ceil(runiform()*3)
+
+. egen class = group(hospitalid ward)
+  --------------------------------------------------------------------------------------- begin egen ---
+  - version 6, missing
+  - local cvers = _caller()
+  - gettoken type 0 : 0, parse(" =(")
+  - gettoken name 0 : 0, parse(" =(")
+  - if `"`name'"'=="=" {
+  = if `"="'=="=" {
+  - local name `"`type'"'
+  = local name `"class"'
+  - local type : set type
+  - }
+  - else {
+    gettoken eqsign 0 : 0, parse(" =(")
+    if `"`eqsign'"' != "=" {
+    error 198
+    }
+    }
+  - confirm new variable `name'
+  = confirm new variable class
+  - gettoken fcn 0 : 0, parse(" =(")
+  - gettoken args 0 : 0, parse(" ,") match(par)
+  - if "`c(adoarchive)'"=="1" {
+  = if ""=="1" {
+    capture qui _stfilearchive find _g`fcn'.ado
+    if _rc {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+    }
+  - else {
+  - capture qui findfile _g`fcn'.ado
+  = capture qui findfile _ggroup.ado
+  - if (`"`r(fn)'"' == "") {
+  = if (`"/Applications/Stata/ado/base/_/_ggroup.ado"' == "") {
+    di as err in smcl "unknown {bf:egen} function {bf:`fcn'()}"
+    exit 133
+    }
+  - }
+  - if `"`par'"' != "(" {
+  = if `"("' != "(" {
+    exit 198
+    }
+  - if `"`args'"' == "_all" | `"`args'"' == "*" {
+  = if `"hospitalid ward"' == "_all" | `"hospitalid ward"' == "*" {
+    version 7.0, missing
+    unab args : _all
+    local args : subinstr local args "`_sortindex'" "", all word
+    version 6.0, missing
+    }
+  - syntax [if] [in] [, *]
+  - if _by() {
+    local byopt "by(`_byvars')"
+    local cma ","
+    }
+  - else if `"`options'"' != "" {
+  = else if `""' != "" {
+    local cma ","
+    }
+  - tempvar dummy
+  - global EGEN_Varname `name'
+  = global EGEN_Varname class
+  - version 7.0, missing
+  - global EGEN_SVarname `_sortindex'
+  = global EGEN_SVarname __000000
+  - version 6.0, missing
+  - if inlist("`fcn'","mode","concat","group") {
+  = if inlist("group","mode","concat","group") {
+  - local vv : display "version " string(`cvers') ", missing:"
+  = local vv : display "version " string(18) ", missing:"
+  - }
+  - capture noisily `vv' _g`fcn' `type' `dummy' = (`args') `if' `in' `cma' `byopt' `options'
+  = capture noisily version 18, missing: _ggroup float __000001 = (hospitalid ward)     
+  - version 7.0, missing
+  - local message $EGEN_Message
+  = local message 1
+  - version 6.0, missing
+  - global EGEN_SVarname
+  - global EGEN_Varname
+  - global EGEN_Message
+  - if _rc { exit _rc }
+  - if "`message'" == "" {
+  = if "1" == "" {
+    quietly count if missing(`dummy')
+    if r(N) {
+    local s = cond(r(N)>1,"s","")
+    local N : di %11.0fc r(N)
+    local N `N'
+    di in bl "(`N' missing value`s' generated)"
+    }
+    }
+  - rename `dummy' `name'
+  = rename __000001 class
+  ----------------------------------------------------------------------------------------- end egen ---
+
+. 
+. * Generate outcome with proper error structure
+. * Component weights based on typical healthcare quality measures
+. gen double patient_effect = 0.7*rnormal()  // Patient-specific variation
+
+. gen double ward_effect = 0.3*rnormal()     // Ward-specific variation
+
+. bysort class year: replace ward_effect = ward_effect[1] // Same effect within ward-year
+(98815 real changes made)
+
+. 
+. * Construct final outcome score
+. * Including:
+. * - True hospital quality (persistent + time-varying)
+. * - Volume effect (diminishing returns)
+. * - Patient characteristics
+. * - Ward effects
+. * - Random noise
+. gen double score = ///
+>     true_quality + ///                    // Hospital quality
+>     -0.1 * log(volume) + ///             // Volume effect (negative = better with volume)
+>     0.02 * (age-65) + ///                // Age effect
+>     0.1 * female + ///                    // Gender effect
+>     0.3 * severity + ///                  // Severity effect
+>     0.2 * emergency + ///                 // Emergency effect
+>     ward_effect + ///                     // Ward-specific effect
+>     patient_effect                        // Patient-specific noise
+
+. 
+. * Add some missing values (randomly) to test handling
+. replace score = . if runiform() < 0.01
+(965 real changes made, 965 to missing)
+
+. replace volume = . if runiform() < 0.005
+(498 real changes made, 498 to missing)
+
+. 
+. * Clean and organize final dataset
+. keep hospitalid year class ward volume age female severity emergency score true_quality
+
+. order hospitalid year class ward volume age female severity emergency score true_quality
+  -------------------------------------------------------------------------------------- begin order ---
+  - version 11
+  - if (_caller()<11) {
+    _order `macval(0)'
+    exit
+    }
+  - syntax varlist[, Before(varname) After(varname) first last SEQuential ALPHAbetic]
+  - if (`"`before'"' == "" & `"`after'"' == "" & "`first'" == "" & "`last'" == "" & "`alphabetic'" == ""
+>  & "`sequential'" == "") {
+  = if (`""' == "" & `""' == "" & "" == "" & "" == "" & "" == "" & "" == "") {
+  - _order `macval(0)'
+  = _order hospitalid year class ward volume age female severity emergency score true_quality
+  - exit
+  ---------------------------------------------------------------------------------------- end order ---
+
+. sort hospitalid year class
+
+. 
+. * Save labels
+. label var hospitalid "Hospital ID"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var hospitalid "Hospital ID"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var year "Year"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var year "Year"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var class "Ward/Unit ID"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var class "Ward/Unit ID"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var ward "Ward Number"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var ward "Ward Number"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var volume "Hospital Volume"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var volume "Hospital Volume"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var age "Patient Age"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var age "Patient Age"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var female "Female Patient"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var female "Female Patient"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var severity "Case Severity"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var severity "Case Severity"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var emergency "Emergency Admission"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var emergency "Emergency Admission"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var score "Outcome Score"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var score "Outcome Score"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. label var true_quality "True Hospital Quality"
+  -------------------------------------------------------------------------------------- begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("var", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 18, missing: _label var true_quality "True Hospital Quality"
+  - }
+  ---------------------------------------------------------------------------------------- end label ---
+
+. 
+. * Basic data checks
+. assert hospitalid != .
+
+. assert year != .
+
+. assert class != .
+
+. assert ward != .
+
+. misstable summarize
+  =void mt_patterns_print(real scalar indent, real scalar tabwid, string scalar vlist, string scalar fre
+> qvar,
+  =                real scalar Ncomplete, real scalar Nincomplete,
+  =                string scalar freqopstr, string scalar totalmissvar)
+  =        real scalar            i, j, freqop, n, N
+  =        real matrix            V, tm
+  =        real colvector            freq
+  =        string rowvector            vars
+  =        string scalar            indentstr, tmstr
+  =        real scalar       hastm
+  =void print_one_line(real scalar firstline, string rowvector indentstr,
+  =                    real scalar n, real scalar N,
+  =                    real rowvector v, real scalar freqop)
+  =        real scalar    j
+  =        real scalar    f
+  =void mt_patterns_fix(string scalar vlist)
+  =        real scalar    i, N
+  =        string rowvector    vars
+  =        real matrix    V
+  =struct mt_nested_Infodf {
+  =        string rowvector    vars
+  =        real matrix    X
+  =        real scalar    n
+  =        pointer(real rowvector) colvector pv
+  =        real colvector    vep
+  =        real colvector    vn
+  =        pointer colvector    used
+  =void mt_nested(string scalar vlistname, string scalar freqvar, string scalar macnamestub)
+  =        struct mt_nested_Infodf scalar  I
+  =        real matrix    X
+  =        real colvector    w
+  =        real scalar    i, j
+  =        string scalar    mynum
+  =void mt_nested_initinfo(struct mt_nested_Infodf scalar I, string rowvector names)
+  =        real scalar    i
+  =        I.pv   = J(100, 1, NULL)
+  =void mt_order_matrix(real matrix X, string rowvector vars)
+  =        real scalar    i
+  =void mt_order_matrix_order(real scalar i, real matrix X, string rowvector vars)
+  =        real scalar    target
+  =        real scalar    ip1, ic
+  =        string scalar    hold
+  =void mt_nested_swap(real matrix X, real scalar i, real scalar j)
+  =        real vector    hold
+  =void mt_nested_editrules(struct mt_nested_Infodf scalar I)
+  =        real scalar    i, j
+  =        real scalar    jidx0, jidx1
+  =        real rowvector    used
+  =void mt_nested_buildrules(struct mt_nested_Infodf scalar I)
+  =        real scalar    i
+  =void mt_nested_buildrules_forvar(struct mt_nested_Infodf scalar I, real scalar i)
+  =        real scalar    j
+  =        real scalar    target
+  =        real rowvector    myused, newused
+  =real scalar mt_nested_inuse(real scalar val, real rowvector list)
+  =        return(sum(val :== list) ? 1 : 0)
+  =void mt_nested_combineused(real rowvector uplist, real rowvector toadd)
+  =void mt_nested_add_to_rules(struct mt_nested_Infodf scalar I, real scalar i, pointer(real rowvector) 
+> scalar r)
+  =                I.pv = I.pv \ J(100, 1, NULL)
+  =real rowvector addrules(struct mt_nested_Infodf scalar I, real scalar i, real scalar j)
+  =        real scalar    jidx0, jidx1, jidx
+  =real scalar mt_var_not_in_vs(real scalar var,  pv)
+  =        real scalar    i
+  =void mt_nested_statement_print(real rowvector v, real matrix X, string rowvector vars)
+  =        real scalar    ci, i, i1
+  =string scalar mt_nested_statement_get(real rowvector v, real matrix X, string rowvector vars, real sc
+> alar inclcnt)
+  =        real scalar    ci, i, i1
+  =        string scalar    res
+  =real scalar v1_in_v2(real rowvector v1, real rowvector v2)
+  =        real scalar    i1, i2
+  =void mt_tree(string scalar freqvar, string scalar vlistname, string scalar freqop, real scalar N)
+  =        real scalar    i, sumfreqs, Ncomplete
+  =        real scalar    indent, dofreq
+  =        string rowvector    vlist
+  =        string scalar    indentstr
+  =        real colvector    freqs
+  =void mt_tree_line(real scalar indent, real colvector touse, real colvector freqs, real scalar overall
+> denom,
+  =                 string rowvector vlist, real scalar j0,
+  =                 real scalar dofreq, real scalar firstline, real scalar denom)
+  =        real colvector    v, subtouse
+  =        real scalar    thiscount, restcount
+  =void print_a_number(real scalar count, real scalar sum, real scalar dofreq, real scalar firstline)
+  =        real scalar    per
+  =void reduce_and_sort(string scalar varlistname, string scalar tousename, string scalar exok,
+  =                        string scalar nosort, real scalar desire)
+  =        real scalar    i, n, N
+  =        string rowvector    varlist
+  =        string colvector    vlist
+  =        real matrix    D
+  =        real rowvector    nmiss
+  =        real colvector    count, o
+  =void fixruns(real colvector count, string colvector vlist, string scalar tousename, string scalar exo
+> k)
+  =        real scalar    i
+  =real scalar fixruns_u(real scalar i0, real colvector count, string colvector vlist, string scalar tou
+> sename, string scalar exok)
+  =        real scalar    i1
+  =        real scalar    c
+  =void fixruns_u2(real scalar i0, real scalar i1, string colvector vlist, string scalar tousename, stri
+> ng scalar exok)
+  =        real scalar    i, imax, j
+  =        real scalar    runs, runsi, runsij
+  =        real matrix    Dmid
+  =        real colvector    D0, D1
+  =void swapvlist(string colvector vlist, real scalar i0, real scalar i1)
+  =        string scalar    hold
+  =real rowvector runsof(real matrix D, real matrix D0)
+  =        real scalar    j
+  =        real rowvector    runs
+  =real scalar maxruns(real rowvector runs, string colvector names)
+  =        real scalar    j, jmax, rmax
+  =        string scalar    minname
+  =real matrix getD(real scalar i0, real scalar i1, string colvector vlist, string scalar tousename, str
+> ing scalar exok)
+  =        real matrix    V
+  ---------------------------------------------------------------------------------- begin misstable ---
+  - version 11
+  - gettoken cmd 0 : 0, parse(" ,")
+  - local l = strlen("`cmd'")
+  = local l = strlen("summarize")
+  - if ("`cmd'"==bsubstr("nested", 1, max(4,`l'))) {
+  = if ("summarize"==bsubstr("nested", 1, max(4,9))) {
+    misstable_nested `0'
+    return add
+    }
+  - else if ("`cmd'"==bsubstr("patterns", 1, max(3,`l'))) {
+  = else if ("summarize"==bsubstr("patterns", 1, max(3,9))) {
+    misstable_patterns `0'
+    return add
+    }
+  - else if ("`cmd'"==bsubstr("summarize", 1, max(3,`l'))) {
+  = else if ("summarize"==bsubstr("summarize", 1, max(3,9))) {
+  - misstable_summarize `0'
+  = misstable_summarize 
+                                                               Obs<.
+                                                +------------------------------
+               |                                | Unique
+      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max
+  -------------+--------------------------------+------------------------------
+        volume |       498              99,817  |    487         50    868.2095
+         score |       965              99,350  |   >500  -4.474928    4.028628
+  -----------------------------------------------------------------------------
+  - return add
+  - }
+  - else if ("`cmd'"=="tree") {
+  = else if ("summarize"=="tree") {
+    misstable_tree `0'
+    return add
+    }
+  - else {
+    badsubcmd "`cmd'"
+    }
+  ------------------------------------------------------------------------------------ end misstable ---
+
+. 
+. * Save dataset
+. save "test2.dta", replace
+(file test2.dta not found)
+file test2.dta saved
+
+. 
+. * Display summary statistics
+. di _n "Summary Statistics:"
+
+Summary Statistics:
+
+. sum score volume true_quality, detail
+
+                        Outcome Score
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%    -2.319928      -4.474928
+ 5%    -1.674926       -4.41401
+10%    -1.316543       -3.90666       Obs              99,350
+25%    -.7350875      -3.766941       Sum of wgt.      99,350
+
+50%    -.0786551                      Mean          -.0754407
+                        Largest       Std. dev.      .9742364
+75%     .5804921       3.839061
+90%     1.167297       3.876344       Variance       .9491365
+95%     1.530595       3.915988       Skewness       .0316329
+99%      2.22955       4.028628       Kurtosis       3.016796
+
+                       Hospital Volume
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%           50             50
+ 5%     57.32216             50
+10%     70.16199             50       Obs              99,817
+25%     101.4402             50       Sum of wgt.      99,817
+
+50%     141.1392                      Mean           171.5914
+                        Largest       Std. dev.      105.2005
+75%     211.9772       868.2095
+90%     301.7249       868.2095       Variance       11067.14
+95%     375.3988       868.2095       Skewness       1.989685
+99%     551.3188       868.2095       Kurtosis        9.32648
+
+                    True Hospital Quality
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%    -.9665606      -1.171281
+ 5%    -.7811903      -1.171281
+10%    -.6430632      -1.171281       Obs             100,315
+25%    -.3212145      -1.171281       Sum of wgt.     100,315
+
+50%     .0331442                      Mean            .034541
+                        Largest       Std. dev.       .506722
+75%      .361845       1.523718
+90%     .6863981       1.523718       Variance       .2567672
+95%     .9435935       1.523718       Skewness       .2493634
+99%     1.398985       1.523718       Kurtosis        2.91161
+
+. 
+. di _n "Correlation Structure:"
+
+Correlation Structure:
+
+. preserve
+
+.     collapse (mean) score true_quality (first) volume, by(hospitalid year)
+  ----------------------------------------------------------------------------------- begin collapse ---
+  - version 8, missing
+  - if _caller() < 5 {
+    collaps4 `0'
+    exit
+    }
+  - collapse_17 `0'
+  = collapse_17 (mean) score true_quality (first) volume, by(hospitalid year)
+  - if "`col17_graphbar'" != "" {
+  = if "" != "" {
+    c_local `col17_graphbar' "``col17_graphbar''"
+    }
+  ------------------------------------------------------------------------------------- end collapse ---
+
+.     xtset hospitalid year
+  -------------------------------------------------------------------------------------- begin xtset ---
+  - version 9.2
+  - syntax [varlist(numeric max=2 default=none)] [, MI *]
+  - if ("`mi'"=="") {
+  = if (""=="") {
+  - u_mi_not_mi_set xtset
+  - }
+  - else {
+    u_mi_check_setvars settime xtset `varlist'
+    }
+  - local nvars : list sizeof varlist
+  - if (`nvars' == 2) {
+  = if (2 == 2) {
+  - tsset `0'
+  = tsset hospitalid year
+
+Panel variable: hospitalid (strongly balanced)
+ Time variable: year, 2015 to 2019
+         Delta: 1 unit
+  - }
+  - else if (`nvars' == 1) {
+  = else if (2 == 1) {
+    PanelSet `0'
+    }
+  - else {
+    syntax [, clear MI PANELNAME(passthru) DISPLAYINDENT(passthru) NOBLANK]
+    if ("`clear'" != "") {
+    syntax , clear [ MI ]
+    tsset, clear `mi'
+    }
+    else {
+    if (`"`_dta[_TStvar]'"' == "") {
+    PanelSet, `mi' `panelname' `displayindent' `noblank'
+    }
+    else {
+    tsset, `mi' `panelname' `displayindent' `noblank'
+    }
+    }
+    }
+  ---------------------------------------------------------------------------------------- end xtset ---
+
+.     di _n "Year-to-year correlation of hospital scores:"
+
+Year-to-year correlation of hospital scores:
+
+.     corr L.score score
+(obs=400)
+
+             |        L.         
+             |    score    score
+-------------+------------------
+       score |
+         L1. |   1.0000
+         --. |   0.8491   1.0000
+
+
+.     di _n "Correlation between true quality and observed scores:"
+
+Correlation between true quality and observed scores:
+
+.     corr true_quality score
+(obs=500)
+
+             | true_q~y    score
+-------------+------------------
+true_quality |   1.0000
+       score |   0.9341   1.0000
+
+
+. restore
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/mad265/git-pub/hospital_ebayes/test/log/explore_ebayes.log
+  log type:  text
+ closed on:  19 Mar 2025, 22:26:39
+--------------------------------------------------------------------------------------------------------

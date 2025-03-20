@@ -9,7 +9,7 @@ This program estimates hospital level empirical bayes models. It adapts teacher 
 
 ```stata
 Syntax:
-vamhosp depvar, hospitalid(varname) year(varname) [options]
+hospital_ebayes depvar, hospitalid(varname) year(varname) [options]
 
 Required Arguments:
 - depvar: Dependent variable (outcome measure)
@@ -38,16 +38,16 @@ Optional Arguments:
 use hospital_data.dta, clear
 
 // Run basic model with controls
-vamhosp mortality, hospitalid(providerid) year(year) ///
+hospital_ebayes mortality, hospitalid(providerid) year(year) ///
     controls(age female comorbid) 
 
 // Run model with volume adjustment
-vamhosp mortality, hospitalid(providerid) year(year) ///
+hospital_ebayes mortality, hospitalid(providerid) year(year) ///
     controls(age female comorbid) ///
     shrinkage_target(log_volume)
 
 // Run model with leave-out years
-vamhosp mortality, hospitalid(providerid) year(year) ///
+hospital_ebayes mortality, hospitalid(providerid) year(year) ///
     controls(age female comorbid) ///
     leaveout_years("2010,2015") ///
     leaveout_vars(tv_early tv_late)

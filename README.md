@@ -6,5 +6,5 @@ This is a work in progress.
 This can be installed in stata by 
 
 ```stata
-net install hospital_ebayes from(https://raw.githubusercontent.com/daltonmaurice/hospital_ebayes/main)
+net install hospital_ebayes, from(https://raw.githubusercontent.com/daltonmaurice/hospital_ebayes/main)
 ```

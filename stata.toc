@@ -1,0 +1,3 @@
+v 3
+d Hospital Empirical Bayes Estimation
+p hospital_ebayes 

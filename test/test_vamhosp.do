@@ -93,7 +93,6 @@ capture noisily {
 if _rc != 0 exit _rc
 
 * Test 4: Drift Calculations
-di "Test 4: Drift Calculations"
 capture noisily {
     preserve
         mata: mata clear

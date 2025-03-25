@@ -30,14 +30,22 @@ Optional Arguments:
 - data:        Data handling options ("preserve", "tv", "merge tv", etc.)
 - output:      Output file path prefix
 - driftlimit:  Maximum number of lags (-1 for all)
-- before:      Calculate leave-out estimates using only prior data
-- quasiexperiment: Calculate quasi-experimental estimates
 - leaveout_years: New parameter for year ranges to leave out
 - leaveout_vars: New parameter for variable mappings
 
 Usage Example:
     vamhclose score, hospitalid(hospital) year(year) ///
         controls(age female) shrinkage_target(volume)
+
+    // Example with leave-out estimation
+    vamhclose score, hospitalid(hospital) year(year) ///
+        controls(age female) shrinkage_target(volume) ///
+        leaveout_years("-2,2 -1,1") leaveout_vars("tv_2yr tv_1yr")
+        
+    /* The leaveout example above will:
+    1. Create tv_2yr using data excluding 2 years before/after current year
+    2. Create tv_1yr using data excluding 1 year before/after current year
+    Format is "before,after" where negative numbers are years before */
 
 Notes:
 - Requires Stata 10.2+

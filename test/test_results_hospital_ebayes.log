@@ -43983,3 +43983,236 @@ Covariances used for VA computations:
   - mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "`leaveout_years'", "`leaveout_vars'")
   = mata: driftcalclist(vectorToStripeDiag(m), "id", "year", "__000004", "__00000H", "__00000Q", "tv", "-1,+1 -2,+2 -3,+1 -3,+2 -5, ,+5", "tv_tm1_t1             tv_tm2_t2        
 >      tv_tm3_t1             tv_tm3_t2             tv_tm5_t             tv_t_t5")
+Input vector m dimensions: 1 x 20
+  - }
+  - else {
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv")
+    }
+  - local shrinkage_vars_to_keep
+  - if "`shrinkage_target'" != "" {
+  = if "z" != "" {
+  - local shrinkage_vars_to_keep `mshrinktarget'
+  = local shrinkage_vars_to_keep __000006
+  - }
+  - local leaveout_vars_to_keep
+  - if "`leaveout_years'" != "" {
+  = if "-1,+1 -2,+2 -3,+1 -3,+2 -5, ,+5" != "" {
+  - local leaveout_vars_to_keep `leaveout_vars'
+  = local leaveout_vars_to_keep tv_tm1_t1             tv_tm2_t2             tv_tm3_t1             tv_tm3_t2             tv_tm5_t             tv_t_t5
+  - }
+  - keep `hospitalid' `year' `by' tv `shrinkage_vars_to_keep' `leaveout_vars_to_keep'
+  = keep id year  tv __000006 tv_tm1_t1             tv_tm2_t2             tv_tm3_t1             tv_tm3_t2             tv_tm5_t             tv_t_t5
+variable tv_tm1_t1 not found
+    if "`shrinkage_target'" != "" {
+    if "`leaveout_vars'" != "" {
+    foreach v in `leaveout_vars' {
+    gen `v'_shrinktgt = `v' + `mshrinktarget'
+    replace `v'_shrinktgt=`mshrinktarget' if `v'==.
+    }
+    }
+    gen shrinktarget_base=`mshrinktarget'
+    }
+    if (`firstloop'!=1) {
+    append using `"`output'"', nolabel
+    }
+    qui save `"`output'"', replace
+    local firstloop=0
+    di "{txt}{hline}"
+    if "`output_addvars'"!="" quietly {
+    restore, preserve
+    keep `hospitalid' `year' `by' `output_addvars'
+    bys `hospitalid' `year' `by' `output_addvars': keep if _n==1
+    merge m:1 `hospitalid' `year' `by' using `"`output'"', nogen nolabel
+    }
+    sort `hospitalid' `year' `by'
+    qui save `"`output'"', replace
+    if ("`by'"!="") {
+    local bylabels=""
+    forvalues i=1/`by_vals' {
+    local bylabel : label `byvar' `i', strict
+    local bylabel=subinstr("`bylabel'"," ","_",.)
+    local bylabels `bylabels' _`bylabel'
+    }
+    mata:saveVariancesToDataset(cov_lag_accum, corr_lag_accum, obs_lag_accum, cov_se_lag_accum, var_total_accum, var_class_accum, var_ind_accum, cov_sameyear_accum, corr_sameyear
+> _accum, obs_sameyear_accum, tokens(st_local("bylabels")))
+    }
+    else mata:saveVariancesToDataset(cov_lag_accum, corr_lag_accum, obs_lag_accum, cov_se_lag_accum, var_total_accum, var_class_accum, var_ind_accum, cov_sameyear_accum, corr_sam
+> eyear_accum, obs_sameyear_accum, "")
+    if (`nooutput'!=1) qui outsheet using `"`output'_variance.csv"', comma replace
+    tokenize "`data'"
+    if inlist("`1'","preserve","merge") {
+    restore
+    if (`merge_resid'==1) {
+    if ("`byvar'"!="") qui keep if missing(`hospitalid',`year',`class',`byvar')
+    else qui keep if missing(`hospitalid',`year',`class')
+    forvalues l=1/`by_vals' {
+    append using `"`resid_data_`l''"', nolabel
+    }
+    }
+    if (`merge_tv'==1) qui merge m:1 `hospitalid' `year' `by' `output_addvars' using `"`output'"', nogen nolabel
+    }
+    else {
+    restore, not
+    if ("`data'"=="tv") use `"`output'"', clear
+    }
+    if (`nooutput'!=1) log close t
+    }
+  -------------------------------------------------------------------------------------------------------------------------------------------------------- end hospital_ebayes ---
+r(111);
+
+end of do-file
+
+r(111);
+
+. sum
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+          id |  4,000,000      2000.5    1154.701          1       4000
+        year |  4,000,000        10.5    5.766282          1         20
+          mu |  4,000,000     .027577    .9988746  -4.665688   3.887067
+           z |  4,000,000    .0000171    .1002408  -.4209009   .3880299
+         muz |  4,000,000     .027594    1.003659  -4.767271   3.837101
+-------------+---------------------------------------------------------
+          xb |  4,000,000   -.0004306    .9993555  -5.181991   5.038305
+           y |  4,000,000    .0281648    5.196904  -26.21865   25.75132
+          dy |  4,000,000     .169464    .3751613          0          1
+   tv_tm1_t1 |          0
+   tv_tm2_t2 |          0
+-------------+---------------------------------------------------------
+   tv_tm3_t1 |          0
+   tv_tm3_t2 |          0
+    tv_tm5_t |          0
+     tv_t_t5 |          0
+
+. clear
+-------------------------------- begin clear ---
+- if _caller() < 10 {
+  _clear_9 `0'
+  exit
+  }
+- version 10
+- syntax [anything]
+- tokenize `anything'
+= tokenize 
+- if `"`2'"' != "" {
+= if `""' != "" {
+  display as err "`2' not allowed"
+  exit 198
+  }
+- if "`1'"=="" {
+= if ""=="" {
+- drop _all
+- label drop _all
+  ------------------------------ begin label ---
+  - version 10.0
+  - local vv : display "version " string(_caller
+> ()) ", missing:"
+  - gettoken val : 0
+  - if (strpos("`val'", "val") > 0 ) {
+  = if (strpos("drop", "val") > 0 ) {
+    gettoken val 0 : 0
+    syntax anything [, nofix]
+    if "`fix'" != "" {
+    local fix ", nofix"
+    }
+    gettoken var rest : anything
+    while `"`rest'"' != "" {
+    gettoken lab rest : rest
+    local label "`lab'"
+    }
+    local vlist : list anything - lab
+    if "`lab'" == "." {
+    local lab ""
+    }
+    foreach var of varlist `vlist' {
+    `vv' _label `val' `var' `lab' `fix'
+    }
+    }
+  - else {
+  - `vv' _label `macval(0)'
+  = version 10, missing: _label drop _all
+  - }
+  -------------------------------- end label ---
+- }
+- else if "`1'"=="collect" {
+= else if ""=="collect" {
+  collect clear
+  }
+- else if "`1'"=="frames" {
+= else if ""=="frames" {
+  frames reset
+  }
+- else if "`1'"=="mata" {
+= else if ""=="mata" {
+  mata: mata clear
+  }
+- else if "`1'"=="python" {
+= else if ""=="python" {
+  python clear
+  }
+- else if "`1'"=="java" {
+= else if ""=="java" {
+  java clear
+  }
+- else if inlist("`1'", "results", "matrix") {
+= else if inlist("", "results", "matrix") {
+  return clear
+  clearreturn
+  ereturn clear
+  sreturn clear
+  _return drop _all
+  if ("`1'" == "matrix") {
+  matrix drop _all
+  _est drop _all
+  }
+  }
+- else if "`1'"=="programs" {
+= else if ""=="programs" {
+  program drop _all
+  }
+- else if "`1'"=="ado" {
+= else if ""=="ado" {
+  program drop _allado
+  }
+- else if "`1'"=="rngstream" | "`1'"=="rngstream
+> s" {
+= else if ""=="rngstream" | ""=="rngstreams" {
+  set rngstream clear
+  }
+- else if "`1'"=="*" | "`1'"=="all" {
+= else if ""=="*" | ""=="all" {
+  capture mata: st_local("semmods", strofreal(sg
+> __global.hasmodels()))
+  capture
+  if (0`semmods') {
+  display as err "-clear all- not allowed while 
+> an SEM Builder is open"
+  exit 1
+  }
+  drop _all
+  frames reset
+  label drop _all
+  matrix drop _all
+  scalar drop _all
+  constraint drop _all
+  eq drop _all
+  file close _all
+  postutil clear
+  _return drop _all
+  discard
+  collect clear
+  program drop _all
+  timer clear
+  mata: _st__put_cmd_clear()
+  mata: mata clear
+  python clear
+  java clear
+  }
+- else {
+  display as err "`1' not allowed"
+  exit 198
+  }
+---------------------------------- end clear ---
+
+. exit

@@ -222,7 +222,7 @@ forvalues l=1/`by_vals' {
     else {
         gen score_r = score_r1
     }
-    qui sum score_r, detail
+    *sum score_r, detail
 
     *** Save residuals to a dataset if merging them later
     if `merge_resid'==1 {

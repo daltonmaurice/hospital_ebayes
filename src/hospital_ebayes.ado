@@ -103,7 +103,7 @@ if ("`leaveout_years'"!="") {
     local n_rules = 0
     foreach rule in `leaveout_years' {
         local ++n_rules
-        tokenize `rule', parse(",")
+        tokenize "`rule'", parse(",")
         local rule_`n_rules'_before "`1'"
         local rule_`n_rules'_after "`3'"
     }
@@ -186,7 +186,7 @@ forvalues l=1/`by_vals' {
     if ("`by'"!="") qui keep if `byvar'==`l'
 
     *** Run regression
-
+    di "run regressions residualizing dependent variable for controls"
     * If absorb or tfx_resid is not empty (only one is non-empty, otherwise an error was thrown), use areg
     if "`absorb'"!="" | "`tfx_resid'"!="" {
         areg `depvar' `controls' , absorb(`absorb'`tfx_resid')
@@ -343,7 +343,7 @@ forvalues l=1/`by_vals' {
 
 ********** Collapse to teacher-year level data using precision weights **********
 if "`shrinkage_target'" != "" {
-    collapse (mean) `class_mean' `mshrinktarget' (rawsum) `weight' `n_tested' `excess_weight' [aw=`weight'], by(`hospitalid' `year' `by') fast
+    collapse (mean) `class_mean' `mshrinktarget'  (rawsum) `weight' `n_tested' `excess_weight' [aw=`weight'], by(`hospitalid' `year' `by') fast
 }
 else {
     collapse (mean) `class_mean' (rawsum) `weight' `n_tested' `excess_weight' [aw=`weight'], by(`hospitalid' `year' `by') fast
@@ -466,13 +466,9 @@ by `hospitalid': egen `obs_hosp'=count(`hospitalid')
 qui gen float tv=.
 
 if ("`leaveout_years'"!="") {
-    // Convert leaveout rules and vars to mata format
-    local n_rules = wordcount("`leaveout_years'")
-    mata: st_local("mata_rules", invtokens(tokens("`leaveout_years'")))
-    mata: st_local("mata_vars", invtokens(tokens("`leaveout_vars'")))
-    
+
     // Call mata function with leaveout parameters
-    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", tokens("`mata_rules'"), tokens("`mata_vars'"))
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "`leaveout_years'", "`leaveout_vars'")
 }
 else {
     // Call mata function without leaveout parameters
@@ -480,12 +476,17 @@ else {
 }
 
 * Save the VA estimates to a dataset
-if ("`leaveout_years'"=="") {
-    keep `hospitalid' `year' `by' tv `shrinkage_target' `mshrinktarget'
+local shrinkage_vars_to_keep 
+if "`shrinkage_target'" != "" {
+    local shrinkage_vars_to_keep   `mshrinktarget'
 }
-else {
-    keep `hospitalid' `year' `by' tv `shrinkage_target' `mshrinktarget' `leaveout_vars'
+local leaveout_vars_to_keep 
+if "`leaveout_years'" != "" {
+    local leaveout_vars_to_keep  `leaveout_vars'
 }
+
+keep `hospitalid' `year' `by' tv `shrinkage_vars_to_keep' `leaveout_vars_to_keep'
+
 
 
 ///need to add back the hospital charactericis portion
@@ -745,7 +746,7 @@ real scalar driftcalc(real matrix M, real scalar i, real colvector c, real colve
 
 void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar time_var, 
     string scalar scores_var, string scalar weights_var, string scalar hospobs_var, 
-    string scalar va_var, | string vector leaveout_years, string vector leaveout_vars) {
+    string scalar va_var, | string scalar leaveout_years, string scalar leaveout_vars) {
     
     // Declare all variables upfront
     real scalar nobs, obs, hospitalid, obs_hosp, time, new_hospitalid, new_time, year_index, i
@@ -792,26 +793,29 @@ void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar ti
                 st_store(obs, va_var_ind, 
                     driftcalc(M, time-year_index, Z_obs[.,2]:-year_index, Z_obs[.,3], Z_obs[.,4]))
             }
-            
+            string vector lyears, lvars
+            lyears = tokens(leaveout_years)
+            lvars = tokens(leaveout_vars)
             // Compute leaveout estimates if specified
             if (args()>7) {
                 for (i=1; i<=length(leaveout_years); i++) {
                     string scalar before, after
-                    _parse_rule(leaveout_years[i], before, after)
+                    _parse_rule(lyears[i], before, after)
                     
-                    // Build selection condition
-                    string scalar condition
-                    condition = ""
-                    if (before != "") condition = condition + "(Z_obs[.,2]:<time" + before + ")"
-                    if (after != "") {
-                        if (condition != "") condition = condition + "+"
-                        condition = condition + "(Z_obs[.,2]:>time" + after + ")"
+                    // Get base observations
+        
+                    Z_quasi = Z_obs
+                    
+                    // Apply filters if valid
+                    if (before != "" & before != " ") {
+                        Z_quasi = select(Z_quasi, Z_quasi[.,2] :< (time + strtoreal(before)))
+                    }
+                    if (after != "" & after != " ") {
+                        Z_quasi = select(Z_quasi, Z_quasi[.,2] :> (time + strtoreal(after)))
                     }
                     
-                    // Apply selection and compute VA
-                    Z_quasi = select(Z_obs, strtoreal(condition))
                     if (rows(Z_quasi) > 0) {
-                        st_store(obs, st_varindex(leaveout_vars[i]), 
+                        st_store(obs, st_varindex(lvars[i]), 
                             driftcalc(M, time-year_index, Z_quasi[.,2]:-year_index, Z_quasi[.,3], Z_quasi[.,4]))
                     }
                 }
@@ -825,7 +829,7 @@ void _parse_rule(string scalar rule, string scalar before, string scalar after) 
     string vector parts
     parts = tokens(rule, ",")
     before = parts[1]
-    after = parts[2]
+    after = parts[3]
 }
 end
 

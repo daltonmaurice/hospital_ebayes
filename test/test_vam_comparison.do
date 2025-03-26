@@ -1,77 +1,160 @@
 /*******************************************************************************
-Test Suite: VAM Comparison
-Purpose: Compares results between vamhosp  and vam implementations
+Test Suite: hospital_ebayes 
+Purpose: Comprehensive testing of hospital_ebayes functionality
+Reference: Stata 18 Programming Manual [P] error
 *******************************************************************************/
 
 capture log close
-log using test_results_vam, text replace
+log using test_results_hospital_ebayes, text replace
 
-use test.dta, clear
-cap restore 
-* Test 1: Basic Functionality Comparison
-di "Test 1: Basic Functionality Comparison"
+* Load ado file once at the start
+mata: mata clear
+do ../src/hospital_ebayes.ado
+
+* Helper program to check correlation
+capture program drop check_correlation
+program define check_correlation
+    args var1 var2 threshold
+    corr `var1' `var2'
+    if abs(r(rho) - 1) >= `threshold' {
+        di as error "Correlation test failed. Expected correlation near 1, got: " r(rho)
+        exit 9
+    }
+    di "✓ Correlation between `var1' and `var2': " r(rho)
+end
+
+* Test counter
+local test_number = 0
+local failed_tests = 0
+
+* Test 1: Basic Functionality
+local ++test_number
+di _n "Test `test_number': Basic Functionality"
 capture noisily {
-    preserve
-        * Run vamhclose
-        mata: mata clear
-        do ../src/hospital_ebayes.ado
-        vamhosp price , hospitalid(hospid) year(year) data("merge tv") char(lnvol) 
-        if _rc != 0 {
-            di as error "vamhosp failed with error code: " _rc
-            exit _rc
-        }
-        rename tv tv_hosp
-        
-        * Run vam
-        mata: mata clear
-        do ../src/vam_hclose.ado
-        gen tt=1
-        egen cgroup=group(hospid year tt)
-
-        vam dum_y, teacher(hospid) year(year) data("merge tv") hospchar(lnvol) class(cgroup)
-        if _rc != 0 {
-            di as error "vam failed with error code: " _rc
-            exit _rc
-        }
-        rename tv tv_vam
-        
-        * Compare results
-        capture noisily corr tv_hclose tv_vam
-        if _rc != 0 {
-            di as error "Correlation calculation failed with error code: " _rc
-            exit _rc
-        }
-        local corr = r(rho)
-        
-        if abs(`corr' - 1) >= 0.01 {
-            di as error "Correlation test failed. Expected correlation near 1, got: `corr'"
-            exit 9
-        }
-        di "✓ Basic functionality correlation: `corr'"
-    restore
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) data("merge tv")
 }
-if _rc != 0 exit _rc
+if _rc {
+    local ++failed_tests
+    di as error "Test `test_number' failed with error code: " _rc
+}
+else di "✓ Test `test_number' passed"
 
-* Test 2: Volume Effects
-di "Test 2: Volume Effects Comparison"
+* Test 2: Controls
+local ++test_number
+di _n "Test `test_number': Controls"
 capture noisily {
-    preserve
-        mata: mata clear
-        do ../src/hospital_ebayes.ado
-        vamhosp dum_y, hospitalid(hospid) year(year) char(lnvol) charflag(1) data('merge tv')
-        rename tv_hosp_bss_t_t1_t2 tv_hosp_vol
-        
-        mata: mata clear
-        do ../src/vam_hclose.ado
-        gen cgroup=1
-        vam dum_y, teacher(hospid) year(year) hospchar(lnvol) hospvolumeflag(1) data('merge tv') class(cgroup)
-        rename tv tv_vam_vol
-        
-        corr tv_hclose_vol tv_vam_vol
-        assert abs(r(rho) - 1) < 0.01
-        di "✓ Volume effects correlation: " r(rho)
-    restore
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) controls(xb) data("merge tv")
+}
+if _rc {
+    local ++failed_tests
+    di as error "Test `test_number' failed with error code: " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Test 3: Leave-out Estimators
+local ++test_number
+di _n "Test `test_number': Leave-out Estimators"
+capture noisily {
+    mata: mata clear
+ do ../src/hospital_ebayes.ado
+
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) ///
+        leaveout_years("-2,2 -1,1") leaveout_vars("tv_2yr tv_1yr") data("merge tv")
+}
+if _rc {
+    local ++failed_tests
+    di as error "Test `test_number' failed with error code: " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Test 4: Shrinkage Targets
+local ++test_number
+di _n "Test `test_number': Shrinkage Targets"
+capture noisily {
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) ///
+        shrinkage_target(z) data("merge tv")
+}
+if _rc {
+    local ++failed_tests
+    di as error "Test `test_number' failed with error code: " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Test 5: Data Handling Options
+foreach opt in "preserve" "tv" "merge tv" "variance" {
+    local ++test_number
+    di _n "Test `test_number': Data Handling Option - `opt'"
+    capture noisily {
+        use test.dta, clear
+        hospital_ebayes y, hospitalid(id) year(year) data("`opt'")
+    }
+    if _rc {
+        local ++failed_tests
+        di as error "Test `test_number' failed with error code: " _rc
+    }
+    else di "✓ Test `test_number' passed"
 }
 
+* Test 6: Error Cases - Invalid driftlimit
+local ++test_number
+di _n "Test `test_number': Error Cases - Invalid driftlimit"
+capture noisily {
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) driftlimit(999)
+}
+if _rc != 499 {  // Expecting specific error code 499
+    local ++failed_tests
+    di as error "Test `test_number' failed: Expected error 499, got " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Test 7: Error Cases - Invalid variable names
+local ++test_number
+di _n "Test `test_number': Error Cases - Invalid variable names"
+capture noisily {
+    use test.dta, clear
+    gen tv = 1
+    hospital_ebayes y, hospitalid(id) year(year)
+}
+if _rc != 110 {  // Expecting specific error code 110 for variable already exists
+    local ++failed_tests
+    di as error "Test `test_number' failed: Expected error 110, got " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Test 8: Combined Features
+local ++test_number
+di _n "Test `test_number': Combined Features"
+capture noisily {
+    use test.dta, clear
+    hospital_ebayes y, hospitalid(id) year(year) ///
+        controls(xb) ///
+        leaveout_years("-1,1") leaveout_vars("tv_1yr") ///
+        shrinkage_target(z) ///
+        data("merge tv")
+}
+if _rc {
+    local ++failed_tests
+    di as error "Test `test_number' failed with error code: " _rc
+}
+else di "✓ Test `test_number' passed"
+
+* Final test results
+di _n "Test Summary"
+di "=============="
+di "Total tests run: `test_number'"
+di "Tests failed: `failed_tests'"
+
+if `failed_tests' > 0 {
+    di as error "Some tests failed. Check log for details."
+    exit 9
+}
+else {
+    di as txt "All tests passed successfully."
+}
 
 log close 

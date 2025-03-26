@@ -72,7 +72,7 @@ if _rc != 0 exit _rc
 di "Test 3: Controls and Fixed Effects"
 capture noisily {
     preserve
-        mata: mata clear
+          mata: mata clear
         do ../src/hospital_ebayes.ado
 
         hospital_ebayes y, hospitalid(hospid) year(year) data("merge tv") ///
@@ -119,6 +119,8 @@ if _rc != 0 exit _rc
 di "Test 5: Leave-out Estimators"
 capture noisily {
     preserve
+    use test.dta, clear
+ 
         mata: mata clear
         do ../src/hospital_ebayes.ado
         

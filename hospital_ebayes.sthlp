@@ -32,6 +32,7 @@
 {synopt:{opt data(string)}}data handling ("preserve", "tv", "merge tv"){p_end}
 {synopt:{opt out:put(string)}}output file path prefix{p_end}
 {synopt:{opt drift:limit(#)}}maximum number of lags (-1 for all){p_end}
+{synopt:{opt debug}}display additional diagnostic information during estimation{p_end}
 {synopt:{opt leave:out_years(string)}}relative year ranges to exclude from estimation{p_end}
 {synopt:{opt leave:out_vars(string)}}names for variables that will store leave-out estimates{p_end}
 {synoptline}
@@ -87,6 +88,13 @@ after the target year, while "-3,-1" excludes the three years prior to the targe
 {opt leaveout_vars(string)} specifies names for variables that will store the leave-out estimates. Multiple 
 variable names should be provided in order, corresponding to each leave-out period specified in leaveout_years.
 
+{phang}
+{opt debug} displays additional diagnostic information during the estimation process, including:
+{break}    - Intermediate calculation steps
+{break}    - Memory usage statistics
+{break}    - Timing information for each estimation stage
+{break}    - Variable construction details
+
 {marker examples}{...}
 {title:Examples}
 
@@ -112,6 +120,9 @@ variable names should be provided in order, corresponding to each leave-out peri
 {phang2}- tv_pre excludes years t-2 to t-1 (prior 2 years){p_end}
 {phang2}- tv_adjacent excludes year t+1 (adjacent year){p_end}
 {phang2}- tv_future excludes years t+2 to t+3 (2-3 years ahead){p_end}
+
+{pstd}Model with debug output{p_end}
+{phang2}{cmd:. hospital_ebayes mortality, hospitalid(providerid) year(year) controls(age female) debug}{p_end}
 
 {marker authors}{...}
 {title:Authors}

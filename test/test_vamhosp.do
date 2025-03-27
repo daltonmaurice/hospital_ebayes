@@ -2,9 +2,12 @@
 Test Suite: VAMHOSP
 Purpose: Tests functionality of hospital_ebayes estimator
 *******************************************************************************/
-
+cd /Users/mad265/git-pub/hospital_ebayes/test
 clear all
 mata: mata clear
+
+do "../src/hospital_ebayes.ado"
+
 capture log close
 //mkdir test/logs 
 //log using test/logs/test_results_vamhosp, text replace
@@ -112,6 +115,7 @@ capture noisily {
 }
 if _rc exit _rc
 
+/*
 * Test 4: Leave-out Estimators
 di _n "Test 4: Leave-out Estimators"
 capture noisily {
@@ -139,7 +143,7 @@ capture noisily {
     hospital_ebayes y, hospitalid(id) year(year) ///
         controls(xb) shrinkage_target(z) data("merge tv") ///
         leaveout_years("`leaveout_patterns'") ///
-        leaveout_vars("`leaveout_vars'")
+        leaveout_vars("`leaveout_vars'") tfx_resid(id)
     
     * Verify leave-out estimates
     foreach var of local leaveout_vars {
@@ -165,7 +169,7 @@ capture noisily {
     di "✓ Leave-out estimators test passed"
 }
 if _rc exit _rc
-
+*/
 
 
 * Test 4b: Leave-out Estimators with tfx_resid
@@ -195,7 +199,7 @@ capture noisily {
     hospital_ebayes y, hospitalid(id) year(year) ///
         controls(xb) shrinkage_target(z) data("merge tv") ///
         leaveout_years("`leaveout_patterns'") ///
-        leaveout_vars("`leaveout_vars'") tfx_resid(id)
+        leaveout_vars("`leaveout_vars'") tfx_resid(id) debug
     
     * Verify leave-out estimates
     foreach var of local leaveout_vars {

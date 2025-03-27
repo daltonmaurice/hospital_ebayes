@@ -32,6 +32,7 @@ Optional Arguments:
 - driftlimit:  Maximum number of lags (-1 for all)
 - leaveout_years: New parameter for year ranges to leave out
 - leaveout_vars: New parameter for variable mappings
+- debug:       New debug parameter
 
 Usage Example:
     vamhclose score, hospitalid(hospital) year(year) ///
@@ -72,7 +73,8 @@ syntax varname(ts fv), hospitalid(varname) year(varname) [class(varname) ///
     data(string) output(string) output_addvars(varlist) ///
     driftlimit(integer -1) ///
     leaveout_years(string) /// New parameter for year ranges to leave out
-    leaveout_vars(string)]  /// New parameter for variable mappings
+    leaveout_vars(string) /// New parameter for variable mappings
+    debug] /// New debug parameter
 
 * By default we use 1 class or ward per hospital. We didnt feel there was 
 * a direct comparable unit to classrooms within a hospital.
@@ -117,7 +119,6 @@ if ("`leaveout_years'"!="") {
             di as error "The dataset loaded in memory cannot have a variable named ``i''."
             exit 110
         }
-        qui gen float ``i'' = .
     }
 }
 
@@ -466,13 +467,15 @@ by `hospitalid': egen `obs_hosp'=count(`hospitalid')
 qui gen float tv=.
 
 if ("`leaveout_years'"!="") {
-
-    // Call mata function with leaveout parameters
-    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "`leaveout_years'", "`leaveout_vars'")
+    foreach v in `leaveout_vars' {
+        qui gen float `v'=.
+    }
+    // Call mata function with leaveout parameters and debug flag
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "`leaveout_years'", "`leaveout_vars'", "`debug'"!="")
 }
 else {
-    // Call mata function without leaveout parameters
-    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv")
+    // Call mata function without leaveout parameters but with debug flag
+    mata: driftcalclist(vectorToStripeDiag(m), "`hospitalid'", "`year'", "`class_mean'", "`weight'", "`obs_hosp'", "tv", "", "", "`debug'"!="")
 }
 
 * Save the VA estimates to a dataset
@@ -484,7 +487,7 @@ local leaveout_vars_to_keep
 if "`leaveout_years'" != "" {
     local leaveout_vars_to_keep  `leaveout_vars'
 }
-
+des *,full 
 keep `hospitalid' `year' `by' tv `shrinkage_vars_to_keep' `leaveout_vars_to_keep'
 
 
@@ -614,6 +617,7 @@ mata:
         phi=Mpos[i,.]*A'
 
         /* return the vector of weights, choose the VCV that D.Staiger */
+
         /* coded  to always be pos semi def */
         return    (phi*cholinv(vcv))
 }
@@ -746,11 +750,12 @@ real scalar driftcalc(real matrix M, real scalar i, real colvector c, real colve
 
 void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar time_var, 
     string scalar scores_var, string scalar weights_var, string scalar hospobs_var, 
-    string scalar va_var, | string scalar leaveout_years, string scalar leaveout_vars) {
+    string scalar va_var, string scalar leaveout_years, string scalar leaveout_vars,
+    | real scalar debug) {
     
     // Declare all variables upfront
     real scalar nobs, obs, hospitalid, obs_hosp, time, new_hospitalid, new_time, year_index, i
-    real matrix Z, Z_hosp, Z_obs, Z_quasi
+    real matrix Z, Z_hosp, Z_obs, z_quasi
     
     nobs = st_nobs()
     
@@ -793,30 +798,76 @@ void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar ti
                 st_store(obs, va_var_ind, 
                     driftcalc(M, time-year_index, Z_obs[.,2]:-year_index, Z_obs[.,3], Z_obs[.,4]))
             }
-            string vector lyears, lvars
-            lyears = tokens(leaveout_years)
-            lvars = tokens(leaveout_vars)
+
             // Compute leaveout estimates if specified
             if (args()>7) {
-                for (i=1; i<=length(leaveout_years); i++) {
+                string vector lyears, lvars
+                lyears = tokens(leaveout_years)
+                lvars = tokens(leaveout_vars)
+                
+                // Modify debug prints to check debug flag
+                if (args()>9 & debug) {
+                    printf("leaveout_years: %s\n", leaveout_years)
+                    printf("leaveout_vars: %s\n", leaveout_vars)
+                    printf("Number of rules: %f\n", length(lyears))
+                }
+                
+                for (i=1; i<=length(lyears); i++) {
                     string scalar before, after
                     _parse_rule(lyears[i], before, after)
                     
+                    // Wrap debug prints in debug flag check
+                    if (args()>9 & debug) {
+                        printf("Rule %f:  before=%s, after=%s\n", i, before, after)
+                        printf("Initial Z_quasi rows: %f\n", rows(Z_obs))
+                        
+                        if (strlen(before)) {
+                            printf("Filtering out years >= %f (current year %f + offset %f)\n", 
+                                   time + strtoreal(before), time, strtoreal(before))
+                        }
+                        
+                        if (strlen(after)) {
+                            printf("Filtering out years <= %f (current year %f + offset %f)\n", 
+                                   time + strtoreal(after), time, strtoreal(after))
+                        }
+                                      
+                        printf("Creating variable: %s (index: %f)\n", lvars[i], st_varindex(lvars[i]))
+                    }
+                    
                     // Get base observations
-        
-                    Z_quasi = Z_obs
+                    z_quasi = Z_obs
                     
                     // Apply filters if valid
-                    if (before != "" & before != " ") {
-                        Z_quasi = select(Z_quasi, Z_quasi[.,2] :< (time + strtoreal(before)))
-                    }
-                    if (after != "" & after != " ") {
-                        Z_quasi = select(Z_quasi, Z_quasi[.,2] :> (time + strtoreal(after)))
+                    real scalar before_val, after_val
+                    
+                    if (strlen(before)) {
+                        before_val = strtoreal(before)
+                                   }
+                    
+                    if (strlen(after)) {
+                        after_val = strtoreal(after)
+
                     }
                     
-                    if (rows(Z_quasi) > 0) {
+                    // apply the appropriate filter based on which values are present
+                    if (strlen(before)==0 & strlen(after)) {
+                        z_quasi = select(z_quasi, z_quasi[.,2] :> (time + after_val))
+                    }
+                    else if (strlen(before) & strlen(after)==0) {
+                        z_quasi = select(z_quasi, z_quasi[.,2] :< (time + before_val))
+                    }
+                    else if (strlen(before) & strlen(after)) {
+                        z_quasi = select(z_quasi, (z_quasi[.,2] :< (time + before_val)) + (z_quasi[.,2] :> (time + after_val)))
+                    }
+                    if (args()>9 & debug) {
+                        printf("After filter: %f observations\n", rows(z_quasi))
+                    }
+                    
+                    if (rows(z_quasi) > 0) {
                         st_store(obs, st_varindex(lvars[i]), 
-                            driftcalc(M, time-year_index, Z_quasi[.,2]:-year_index, Z_quasi[.,3], Z_quasi[.,4]))
+                            driftcalc(M, time-year_index, z_quasi[.,2]:-year_index, z_quasi[.,3], z_quasi[.,4]))
+                    } else {
+                        printf("Warning: No observations left after filtering for rule %f\n", i)
                     }
                 }
             }
@@ -828,8 +879,24 @@ void driftcalclist(real matrix M, string scalar hospitalid_var, string scalar ti
 void _parse_rule(string scalar rule, string scalar before, string scalar after) {
     string vector parts
     parts = tokens(rule, ",")
-    before = parts[1]
-    after = parts[3]
+    
+    // Handle empty before value
+    if (length(parts) == 3) {
+        before = parts[1]
+        after = parts[3]   
+    }
+    // Handle after value
+    if (length(parts) == 2) {
+        if (parts[1] == ",") {
+            before = ""  
+            after = parts[2]
+        } 
+        if (parts[2]==",") {
+            before = parts[1]
+            after = ""
+        }
+    }
 }
-end
+end 
+
 

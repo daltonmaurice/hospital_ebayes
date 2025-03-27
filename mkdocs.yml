@@ -1,8 +1,8 @@
 # Project Information
 site_name: Hospital Ebayes 
-site_description: Hospital Provider ID Crosswalk 
-site_author: cooper-lab
-site_url: https://fictional-adventure-8q8z4q4.pages.github.io/
+site_description: Empirical Bayes Estimation for Hospital Outcomes
+site_author: Maurice Dalton
+site_url: https://daltonmaurice.github.io/hospital_ebayes/
 docs_dir: docs
 site_dir: site
 
@@ -32,8 +32,8 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
   font:
-    text: Roboto Serif
-    code: Roboto Mono
+    text: Nunito Sans
+    code: SFMono-Regular
   name: material
   icon:
     edit: material/pencil
@@ -48,9 +48,6 @@ theme:
     - navigation.sections
     - content.action.edit
     - navigation.instant
-    - navigation.tabs
-    - navigation.top
-    - navigation.tabs.stick
     - navigation.indexes
     - content.code.copy
     - navigation.footer

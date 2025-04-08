@@ -1,0 +1,40 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}/Users/mad265/git-pub/hospital_ebayes/test/test_vam_log.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res} 8 Apr 2025, 12:05:35
+{txt}{hline}
+{res}Standard deviations: total, classes, students, teachers same year
+5.0993099 1.0048919 4.9993153 .
+Covariances (left), correlations (middle), observations (right).  Row i indicates the relation between year t and t+i:
+        {txt}          1             2             3
+     {c TLC}{hline 43}{c TRC}
+   1 {c |}  {res}.9474967058   .6271570687         76000{txt}  {c |}
+   2 {c |}  {res}.9041998668   .5987675606         72000{txt}  {c |}
+   3 {c |}  {res} .853965801   .5660650523         68000{txt}  {c |}
+   4 {c |}  {res}.8129647109   .5396190298         64000{txt}  {c |}
+   5 {c |}  {res}.7696920788   .5110354315         60000{txt}  {c |}
+   6 {c |}  {res} .734407597   .4880444589         56000{txt}  {c |}
+   7 {c |}  {res}.6929318601   .4601016551         52000{txt}  {c |}
+   8 {c |}  {res}.6668197618   .4422463231         48000{txt}  {c |}
+   9 {c |}  {res}.6375672892   .4227240364         44000{txt}  {c |}
+  10 {c |}  {res}.6094285735   .4036823854         40000{txt}  {c |}
+  11 {c |}  {res}.5710979813   .3778458568         36000{txt}  {c |}
+  12 {c |}  {res}.5502575633   .3638023834         32000{txt}  {c |}
+  13 {c |}  {res}.5179222597   .3415347639         28000{txt}  {c |}
+  14 {c |}  {res}.4995739978   .3284307087         24000{txt}  {c |}
+  15 {c |}  {res}.4621006235   .3039489324         20000{txt}  {c |}
+  16 {c |}  {res}.4424915545   .2906789386         16000{txt}  {c |}
+  17 {c |}  {res}.4173467762   .2753052072         12000{txt}  {c |}
+  18 {c |}  {res}.3985589118   .2646397266          8000{txt}  {c |}
+  19 {c |}  {res}.3834683723   .2575334606          4000{txt}  {c |}
+     {c BLC}{hline 43}{c BRC}
+{res}{txt}{hline}
+{res}      {txt}name:  {res}<unnamed>
+       {txt}log:  {res}/Users/mad265/git-pub/hospital_ebayes/test/test_vam_log.smcl
+  {txt}log type:  {res}smcl
+ {txt}closed on:  {res} 8 Apr 2025, 12:05:46
+{txt}{.-}
+{smcl}
+{txt}{sf}{ul off}

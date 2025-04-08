@@ -60,6 +60,8 @@ Doug Staiger
 Based on vam.ado written by Michael Stepner version 2.0.1  27jul2013.
 *******************************************************************************/
 
+// Include Mata functions
+//include "hospital_ebayes_mata.mata"
 
 cap program drop  hospital_ebayes
 program define hospital_ebayes
@@ -110,8 +112,21 @@ if ("`leaveout_years'"!="") {
         local rule_`n_rules'_after "`3'"
     }
     
-    // Parse variable names
+    // Parse variable names and validate count matches
     tokenize `leaveout_vars'
+    local n_vars = 0
+    foreach v in `leaveout_vars' {
+        local ++n_vars
+    }
+    
+    if (`n_rules' != `n_vars') {
+        di as error "Error: Number of leaveout rules (`n_rules') does not match number of leaveout variables (`n_vars')"
+        di as error "leaveout_years: `leaveout_years'"
+        di as error "leaveout_vars: `leaveout_vars'"
+        exit 198
+    }
+    
+    // Parse variable names
     forvalues i = 1/`n_rules' {
         local var_`i' "``i''"
         capture confirm variable ``i'', exact

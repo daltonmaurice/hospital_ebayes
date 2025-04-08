@@ -1,2 +1,6 @@
 test/logs
 .DS_Store
+*.log
+*.dta
+*.csv
+*.log

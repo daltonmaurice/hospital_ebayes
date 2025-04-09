@@ -2,16 +2,15 @@
 Test Suite: VAMHOSP
 Purpose: Tests functionality of hospital_ebayes estimator
 *******************************************************************************/
-cd /Users/mad265/git-pub/hospital_ebayes/test
-clear all
+cd /Users/mad265/git-pub/hospital_ebayes/src 
 mata: mata clear
 
 * Ensure logs directory exists
-capture mkdir logs
+capture mkdir ../test/logs
 
 * Close any existing logs and start new one
 capture log close
-capture log using logs/test_results_vamhosp, text replace
+capture log using ../test/logs/test_results_vamhosp, text replace
 if _rc {
     di as error "Failed to create log file. Error code: " _rc
     exit 498
@@ -22,13 +21,13 @@ local test_number = 0
 local failed_tests = 0
 
 * Load required files for each test
-capture confirm file "test.dta"
+capture confirm file "../test/test.dta"
 if _rc {
     di as error "Required test.dta file not found"
     exit 601
 }
 
-capture confirm file "../src/hospital_ebayes.ado"
+capture confirm file "hospital_ebayes.ado"
 if _rc {
     di as error "Required hospital_ebayes.ado file not found"
     exit 601
@@ -38,9 +37,9 @@ if _rc {
 local ++test_number
 di _n "Test `test_number': Basic hospital_ebayes Functionality"
 capture noisily {
-    use test.dta, clear
+    use ../test/test.dta, clear
     mata: mata clear
-    quietly do "../src/hospital_ebayes.ado"
+    quietly do "hospital_ebayes.ado"
     
     hospital_ebayes y, hospitalid(id) year(year) ///
         controls(xb) shrinkage_target(z) data("merge tv") tfx_resid(id)
@@ -72,9 +71,9 @@ else di "✓ Test `test_number' passed"
 local ++test_number
 di _n "Test `test_number': Volume Effects with Shrinkage Target"
 capture noisily {
-    use test.dta, clear
+    use ../test/test.dta, clear
     mata: mata clear
-    quietly do "../src/hospital_ebayes.ado"
+    quietly do "hospital_ebayes.ado"
     
     hospital_ebayes y, hospitalid(id) year(year) ///
         data("merge tv") shrinkage_target(z)
@@ -104,9 +103,9 @@ else di "✓ Test `test_number' passed"
 local ++test_number
 di _n "Test `test_number': Controls and Fixed Effects"
 capture noisily {
-    use test.dta, clear
+    use ../test/test.dta, clear
     mata: mata clear
-    quietly do "../src/hospital_ebayes.ado"
+    quietly do "hospital_ebayes.ado"
 
     hospital_ebayes y, hospitalid(id) year(year) ///
         controls(x)  shrinkage_target(z) ///
@@ -137,9 +136,9 @@ else di "✓ Test `test_number' passed"
 local ++test_number
 di _n "Test `test_number': Leave-out Estimators with tfx_resid"
 capture noisily {
-    use test.dta, clear
+    use ../test/test.dta, clear
     mata: mata clear
-    quietly do "../src/hospital_ebayes.ado"
+    quietly do "hospital_ebayes.ado"
     
     * Define leave-out patterns and variable names
     local leaveout_patterns ///
@@ -196,7 +195,7 @@ else di "✓ Test `test_number' passed"
 local ++test_number
 di _n "Test `test_number': Error Handling"
 capture noisily {
-    use test.dta, clear
+    use ../test/test.dta, clear
     * Test invalid variable specification
     capture noisily hospital_ebayes y, hospitalid(id) year(year) controls(nonexistent_var)
     if _rc != 111 {
@@ -206,7 +205,7 @@ capture noisily {
     
     * Test mismatched leaveout specifications
     capture noisily {
-        use test.dta, clear
+        use ../test/test.dta, clear
         hospital_ebayes y, hospitalid(id) year(year) ///
             leaveout_years("-1,1") leaveout_vars("var1 var2") data("merge tv")
         

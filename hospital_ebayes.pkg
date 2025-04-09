@@ -9,5 +9,5 @@ d Based on teacher value-added methods with hospital-specific modifications
 d for volume effects, structure, and additional estimators.
 d
 f src/hospital_ebayes.ado
-f src/vam_hclose.ado
+f src/hospital_ebayes_mata.mata
 f hospital_ebayes.sthlp 
